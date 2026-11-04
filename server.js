@@ -52,13 +52,25 @@ function sessionOf(req) {
   if (!s || s.exp < Date.now()) { sessions.delete(m[1]); return null; }
   return { token: m[1], ...s };
 }
+// Behind the reverse proxy (HTTPS on the internet) the proxy reports the scheme and client address.
+// Those headers are trusted only from private network addresses, where the proxy lives.
+const isPrivate = (a) => /^(::ffff:)?(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)|^::1$/.test(a || "");
+const viaHttps = (req) => isPrivate(req.socket.remoteAddress) && req.headers["x-forwarded-proto"] === "https";
+function clientIp(req) {
+  const fwd = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return isPrivate(req.socket.remoteAddress) && fwd ? fwd : req.socket.remoteAddress;
+}
 function newSession(res, role, workerId) {
   const t = crypto.randomBytes(32).toString("hex");
   sessions.set(t, { exp: Date.now() + SESSION_HOURS * 3600e3, role, workerId });
-  res.setHeader("Set-Cookie", `sid=${t}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_HOURS * 3600}`);
+  const secure = viaHttps(res.req) ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `sid=${t}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_HOURS * 3600}${secure}`);
 }
 function send(res, code, body, type = "application/json") {
-  res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+  const headers = { "Content-Type": type, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer" };
+  if (viaHttps(res.req)) headers["Strict-Transport-Security"] = "max-age=31536000";
+  res.writeHead(code, headers);
   res.end(typeof body === "string" || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
 function readBody(req) {
@@ -80,7 +92,7 @@ function recordFailure(ip) {
 
 http.createServer(async (req, res) => {
   const url = req.url.split("?")[0];
-  const ip = req.socket.remoteAddress;
+  const ip = clientIp(req);
   try {
     if (req.method === "GET" && STATIC[url]) {
       const [file, type] = STATIC[url];
