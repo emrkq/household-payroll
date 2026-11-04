@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "dependencies": { "jspdf": "2.5.1" }
+  "scripts": {
+    "start": "node server.js",
+    "seed-demo": "node scripts/seed-demo.js"
+  },
+  "dependencies": {
+    "jspdf": "2.5.1"
+  }
 }

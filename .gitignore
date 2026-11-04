@@ -3,3 +3,4 @@ data/
 *.backup*.json
 node_modules/
 *.log
+demo-data/
