@@ -172,6 +172,11 @@ nav.tabs [data-theme-toggle], nav.tabs [data-lang-toggle] { padding: 8px 10px; }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 .portal-who { display: flex; gap: 6px 18px; flex-wrap: wrap; color: var(--muted); }
 .portal-who strong { color: var(--ink); }
+.search { position: relative; width: min(320px, 100%); }
+.search input { padding-inline-start: 34px; }
+.search svg { position: absolute; inset-inline-start: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.name-ar { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+.head-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .access { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
 /* Arabic: letter-spacing and uppercase break joined letters */
 [dir="rtl"] legend, [dir="rtl"] th, [dir="rtl"] .net small, [dir="rtl"] .brand small { letter-spacing: 0; text-transform: none; }
@@ -310,7 +315,7 @@ nav.tabs [data-theme-toggle], nav.tabs [data-lang-toggle] { padding: 8px 10px; }
     <section data-view="workers" hidden>
       <div class="section-head">
         <div><h2>Workers</h2><p>Name and ID number appear on every payslip.</p></div>
-        <button class="btn primary" id="addWorker">Add worker</button>
+        <div class="head-tools"><label class="search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="workerSearch" placeholder="Search by name (Arabic or English) or ID card no." aria-label="Search by name (Arabic or English) or ID card no." autocomplete="off"></label><button class="btn primary" id="addWorker">Add worker</button></div>
       </div>
       <div class="panel table-wrap" style="padding:0">
         <table>
@@ -324,6 +329,7 @@ nav.tabs [data-theme-toggle], nav.tabs [data-lang-toggle] { padding: 8px 10px; }
     <section data-view="history" hidden>
       <div class="section-head">
         <div><h2>Payslip history</h2><p>Download any past payslip again.</p></div>
+        <div class="head-tools"><label class="search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="historySearch" placeholder="Search by name (Arabic or English) or ID card no." aria-label="Search by name (Arabic or English) or ID card no." autocomplete="off"></label></div>
       </div>
       <div class="panel table-wrap" style="padding:0">
         <table>
@@ -442,6 +448,7 @@ nav.tabs [data-theme-toggle], nav.tabs [data-lang-toggle] { padding: 8px 10px; }
     <h3 id="workerDlgTitle">Add worker</h3>
     <div class="fields">
       <label class="full">Full name (English) <input id="wName" required></label>
+      <label class="full">Full name (Arabic) <input id="wNameAr" dir="rtl" lang="ar" placeholder="Optional, used for search"></label>
       <label>ID card no. <input id="wId" required></label>
       <label>Nationality <input id="wNat"></label>
       <label>Job title <input id="wJob" placeholder="Housemaid"></label>
@@ -565,6 +572,9 @@ const AR = {
   "Country": "الدولة", "Other country": "دولة أخرى",
   "Qatar": "قطر", "Saudi Arabia": "السعودية", "United Arab Emirates": "الإمارات", "Kuwait": "الكويت", "Bahrain": "البحرين", "Oman": "عُمان",
   "Jordan": "الأردن", "Egypt": "مصر",
+  "Search by name (Arabic or English) or ID card no.": "ابحث بالاسم (عربي أو إنجليزي) أو رقم البطاقة",
+  "Full name (Arabic)": "الاسم الكامل (بالعربي)", "Optional, used for search": "اختياري، يستخدم في البحث",
+  "No results for “{q}”.": "ما فيه نتائج لـ «{q}».",
   "e.g. Al Noor Household": "بالإنجليزي، مثال: Al Noor Household", "e.g. Doha, State of Qatar": "بالإنجليزي، مثال: Doha, State of Qatar",
 };
 let lang = "en";
@@ -968,13 +978,29 @@ function boot() {
 }
 
 /* ---------- Workers ---------- */
+// Search: case-insensitive English, and Arabic with diacritics and letter variants folded together
+const foldText = (v) => String(v || "").toLowerCase()
+  .replace(/[\u064B-\u0652\u0640]/g, "")   // harakat and tatweel
+  .replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/ؤ/g, "و").replace(/ئ/g, "ي")
+  .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+  .replace(/\s+/g, " ").trim();
+function matchesSearch(q, ...fields) {
+  const words = foldText(q).split(" ").filter(Boolean);
+  if (!words.length) return true;
+  const hay = foldText(fields.join(" "));
+  const digits = hay.replace(/\s+/g, "");
+  return words.every(w => hay.includes(w) || (/^\d+$/.test(w) && digits.includes(w)));
+}
+const nameArOf = (id) => data.workers.find(w => w.id === id)?.nameAr || "";
+const noResults = (q, cols) => `<tr><td colspan="${cols}" class="empty">${esc(t("No results for “{q}”.", { q }))}</td></tr>`;
 function renderWorkers() {
-  const rows = data.workers.map(w => `<tr>
-    <td><strong class="ltr">${esc(w.name)}</strong>${onlineIds.has(w.id) ? ` <span class="chip">${t("Online")}</span>` : ""}</td><td class="mono"><span class="ltr">${esc(w.idNo)}</span></td><td>${esc(w.nat || "-")}</td>
+  const q = $("workerSearch").value;
+  const rows = data.workers.filter(w => matchesSearch(q, w.name, w.nameAr, w.idNo)).map(w => `<tr>
+    <td><strong class="ltr">${esc(w.name)}</strong>${w.nameAr ? `<span class="name-ar" dir="rtl">${esc(w.nameAr)}</span>` : ""}${onlineIds.has(w.id) ? ` <span class="chip">${t("Online")}</span>` : ""}</td><td class="mono"><span class="ltr">${esc(w.idNo)}</span></td><td>${esc(w.nat || "-")}</td>
     <td>${esc(w.job || "-")}</td><td class="num">${money(w.salary)}</td>
     <td class="num"><div class="row" style="justify-content:end">
       <button class="btn sm" data-pay="${w.id}">${t("Payslip")}</button><button class="btn sm" data-edit="${w.id}">${t("Edit")}</button></div></td></tr>`).join("");
-  $("workerRows").innerHTML = rows || `<tr><td colspan="6" class="empty">${t("No workers yet. Select <strong>Add worker</strong> to add your first one.")}</td></tr>`;
+  $("workerRows").innerHTML = rows || (data.workers.length ? noResults(q, 6) : `<tr><td colspan="6" class="empty">${t("No workers yet. Select <strong>Add worker</strong> to add your first one.")}</td></tr>`);
   $("brandName").textContent = data.settings.employer ? data.settings.employer : t("Household Payroll");
 }
 $("workerRows").addEventListener("click", (e) => {
@@ -987,7 +1013,7 @@ function openWorker(w) {
   editingWorker = w;
   $("workerDlgTitle").textContent = t(w ? "Edit worker" : "Add worker");
   $("wDelete").hidden = !w;
-  $("wName").value = w?.name || ""; $("wId").value = w?.idNo || ""; $("wNat").value = w?.nat || "";
+  $("wName").value = w?.name || ""; $("wNameAr").value = w?.nameAr || ""; $("wId").value = w?.idNo || ""; $("wNat").value = w?.nat || "";
   $("wJob").value = w?.job || ""; $("wPass").value = w?.passport || ""; $("wJoin").value = w?.join || "";
   $("wSalary").value = w?.salary ?? 0; $("wBank").value = w?.bank || "";
   $("wPortalPw").value = "";
@@ -1014,7 +1040,7 @@ $("wDelete").addEventListener("click", async () => {
 $("workerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const w = editingWorker || { id: uid() };
-  Object.assign(w, { name: titleCase($("wName").value), idNo: $("wId").value.trim(), nat: $("wNat").value.trim(), job: $("wJob").value.trim(),
+  Object.assign(w, { name: titleCase($("wName").value), nameAr: $("wNameAr").value.trim(), idNo: $("wId").value.trim(), nat: $("wNat").value.trim(), job: $("wJob").value.trim(),
     passport: $("wPass").value.trim(), join: $("wJoin").value, salary: parseFloat($("wSalary").value) || 0, bank: $("wBank").value.trim() });
   const portalPw = $("wPortalPw").value.trim();
   if (portalPw && portalPw.length < 4) { $("wPortalPw").focus(); toast(t("Use at least 4 characters.")); return; }
@@ -1032,7 +1058,7 @@ $("workerForm").addEventListener("submit", async (e) => {
 function renderWorkerSelect(selectId) {
   const cur = selectId || $("sWorker").value;
   $("sWorker").innerHTML = data.workers.length
-    ? data.workers.map(w => `<option value="${w.id}">${esc(w.name)} — ${esc(w.idNo)}</option>`).join("")
+    ? data.workers.map(w => `<option value="${w.id}">${esc(w.name)}${w.nameAr ? " · " + esc(w.nameAr) : ""} — ${esc(w.idNo)}</option>`).join("")
     : `<option value="">${t("No workers yet")}</option>`;
   if (cur && data.workers.some(w => w.id === cur)) $("sWorker").value = cur;
   onWorkerChange();
@@ -1085,13 +1111,18 @@ $("slipForm").addEventListener("submit", async (e) => {
 
 /* ---------- History ---------- */
 function renderHistory() {
-  $("historyRows").innerHTML = data.slips.map((s, i) => `<tr>
-    <td class="mono">${s.no}</td><td>${uiMonth(s.month)}</td><td><strong class="ltr">${esc(s.worker.name)}</strong></td>
+  const q = $("historySearch").value;
+  // Keep each payslip's index in data.slips: the buttons refer to it
+  const rows = data.slips.map((s, i) => [s, i]).filter(([s]) => matchesSearch(q, s.worker.name, s.worker.nameAr || nameArOf(s.worker.id), s.worker.idNo, s.no));
+  $("historyRows").innerHTML = rows.map(([s, i]) => `<tr>
+    <td class="mono">${s.no}</td><td>${uiMonth(s.month)}</td><td><strong class="ltr">${esc(s.worker.name)}</strong>${(s.worker.nameAr || nameArOf(s.worker.id)) ? `<span class="name-ar" dir="rtl">${esc(s.worker.nameAr || nameArOf(s.worker.id))}</span>` : ""}</td>
     <td class="mono"><span class="ltr">${esc(s.worker.idNo)}</span></td><td class="num"><span class="ltr">${esc(s.currency)} ${money(s.net)}</span></td>
     <td class="num"><div class="row" style="justify-content:end"><button class="btn sm" data-pr="${i}">${t("Print")}</button><button class="btn sm" data-dl="${i}">${t("Download PDF")}</button>
     <button class="btn sm danger" data-rm="${i}">${t("Remove")}</button></div></td></tr>`).join("")
-    || `<tr><td colspan="6" class="empty">${t("No payslips yet. They appear here after you download one.")}</td></tr>`;
+    || (data.slips.length ? noResults(q, 6) : `<tr><td colspan="6" class="empty">${t("No payslips yet. They appear here after you download one.")}</td></tr>`);
 }
+$("workerSearch").addEventListener("input", renderWorkers);
+$("historySearch").addEventListener("input", renderHistory);
 $("historyRows").addEventListener("click", async (e) => {
   const dl = e.target.closest("[data-dl]"), rm = e.target.closest("[data-rm]");
   const pr = e.target.closest("[data-pr]");

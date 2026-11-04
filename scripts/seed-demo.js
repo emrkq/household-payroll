@@ -22,9 +22,9 @@ const WORKER_PASSWORD = "worker1234";
 const settings = { employer: "Al Noor Household", address: "West Bay, Doha, State of Qatar", phone: "+974 4000 0000",
   country: "QA", currency: "QAR", curName: "Qatari Riyals", subName: "Dirhams" };
 const workers = [
-  { id: "w1", name: "Maria Santos", idNo: "28460000001", nat: "Philippines", job: "Housemaid", passport: "P0000001A", join: "2023-02-01", salary: 1800, bank: "" },
-  { id: "w2", name: "Siti Rahma", idNo: "28460000002", nat: "Indonesia", job: "Nanny", passport: "B0000002", join: "2024-06-15", salary: 2000, bank: "" },
-  { id: "w3", name: "Kamal Perera", idNo: "28460000003", nat: "Sri Lanka", job: "Driver", passport: "N0000003", join: "2025-01-10", salary: 2500, bank: "" },
+  { id: "w1", name: "Maria Santos", nameAr: "ماريا سانتوس", idNo: "28460000001", nat: "Philippines", job: "Housemaid", passport: "P0000001A", join: "2023-02-01", salary: 1800, bank: "" },
+  { id: "w2", name: "Siti Rahma", nameAr: "سيتي رحمة", idNo: "28460000002", nat: "Indonesia", job: "Nanny", passport: "B0000002", join: "2024-06-15", salary: 2000, bank: "" },
+  { id: "w3", name: "Kamal Perera", nameAr: "كمال بيريرا", idNo: "28460000003", nat: "Sri Lanka", job: "Driver", passport: "N0000003", join: "2025-01-10", salary: 2500, bank: "" },
 ];
 
 const year = new Date().getFullYear(), lastMonth = new Date().getMonth(); // payslips up to last month
