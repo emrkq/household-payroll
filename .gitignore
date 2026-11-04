@@ -1,0 +1,5 @@
+# Payroll records, passwords and backups: never commit
+data/
+*.backup*.json
+node_modules/
+*.log

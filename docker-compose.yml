@@ -1,0 +1,9 @@
+services:
+  payroll:
+    build: .
+    container_name: household-payroll
+    restart: unless-stopped
+    ports:
+      - "8097:8080"
+    volumes:
+      - ./data:/data

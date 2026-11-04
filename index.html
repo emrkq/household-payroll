@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Household Payroll</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Mono:wght@500&family=Noto+Sans+Arabic:wght@400;500;700&display=swap">
+<script src="/jspdf.umd.min.js"></script>
+<script>
+  // Apply the saved day/night theme before the page paints
+  try {
+    const th = localStorage.getItem("householdPayroll.theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    document.documentElement.dataset.theme = th;
+  } catch { document.documentElement.dataset.theme = "dark"; }
+</script>
+<style>
+/* Layout: lock screen, then a single working column with a tab bar; payslip form beside a live summary */
+:root {
+  --bg: #121214; --surface: #1c1c1f; --ink: #ececee; --muted: #9b9ba3; --line: #2f2f34;
+  --accent: #e6e6e9; --accent-ink: #121214; --brass: #6f6f77; --danger: #ef8a7a; --soft: #26262a;
+  --display: "Roboto", "Noto Sans Arabic", system-ui, sans-serif; --body: "Roboto", "Noto Sans Arabic", system-ui, sans-serif; --mono: "Roboto Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #f4f4f5; --surface: #ffffff; --ink: #1f1f22; --muted: #6b6b70; --line: #dcdcdf;
+  --accent: #3a3a3f; --accent-ink: #ffffff; --brass: #8a8a90; --danger: #a23a2c; --soft: #efeff1;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+[hidden] { display: none !important; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+/* Lock */
+.lock { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.lock-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 32px 28px; display: grid; gap: 16px; }
+.lock-card h1 { font-size: 28px; }
+.lock-card p { margin: 0; color: var(--muted); }
+.mark { width: 44px; height: 44px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--display); font-size: 22px; font-weight: 700; }
+
+/* Shell */
+header.top { background: var(--surface); color: var(--ink); border-bottom: 1px solid var(--line); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand h1 { font-size: 22px; }
+.brand small { display: block; opacity: .7; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+nav.tabs button { background: transparent; border: 0; color: inherit; opacity: .7; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+nav.tabs button { display: inline-flex; align-items: center; gap: 7px; }
+nav.tabs button svg { flex: none; opacity: .9; }
+[dir="rtl"] #lockNow svg, [dir="rtl"] #portalLogout svg { transform: scaleX(-1); }
+nav.tabs button[aria-selected="true"] { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
+main { padding-block: 28px 60px; }
+.section-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.section-head h2 { font-size: 26px; }
+.section-head p { margin: 4px 0 0; color: var(--muted); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.fields .full { grid-column: 1 / -1; }
+fieldset { border: 0; padding: 0; margin: 0 0 22px; }
+legend { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 10px; padding: 0; }
+label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; color: var(--muted); }
+input, select, textarea { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; font-weight: 500; }
+input[type="number"] { font-variant-numeric: tabular-nums; }
+textarea { min-height: 70px; resize: vertical; }
+
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 9px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn.sm { padding: 5px 10px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+/* Summary */
+.summary { position: sticky; top: 16px; display: grid; gap: 14px; }
+.summary h3 { font-size: 18px; }
+.who { padding-bottom: 12px; border-bottom: 1px dashed var(--line); }
+.who strong { display: block; font-size: 17px; }
+.who span { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.lines { display: grid; gap: 6px; font-variant-numeric: tabular-nums; }
+.lines div { display: flex; justify-content: space-between; gap: 10px; }
+.lines .neg { color: var(--danger); }
+.net { background: var(--soft); border-radius: 10px; padding: 14px; border-inline-start: 4px solid var(--brass); }
+.net small { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.net div { font-family: var(--display); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.net p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: start; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.mono { font-family: var(--mono); font-size: 13px; }
+td.num, th.num { text-align: end; }
+.empty { padding: 36px; text-align: center; color: var(--muted); }
+.chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--soft); color: var(--accent); letter-spacing: .03em; }
+
+dialog { border: 1px solid var(--line); border-radius: 14px; padding: 24px; background: var(--surface); color: var(--ink); width: min(620px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(0, 0, 0, .65); }
+dialog h3 { font-size: 22px; margin-bottom: 16px; }
+
+/* Dashboard */
+:root { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s-other: #7a7a82; }
+:root { --good: #4cc38a; --warn: #e0a83a; }
+:root[data-theme="light"] { --good: #1f7a4a; --warn: #9a6a00; }
+.status { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--soft); white-space: nowrap; }
+.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status.pending { color: var(--warn); } .status.approved { color: var(--good); } .status.rejected { color: var(--danger); }
+.badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-inline-start: 6px; border-radius: 99px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; }
+.portal-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-bottom: 20px; }
+@media (max-width: 860px) { .portal-grid { grid-template-columns: minmax(0, 1fr); } }
+.notice { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; padding: 14px 16px; margin-bottom: 18px; border-radius: 12px; background: var(--soft); border: 1px solid var(--line); border-inline-start: 4px solid var(--good); }
+.notice.rejected { border-inline-start-color: var(--danger); }
+.notice p { margin: 0; font-weight: 600; }
+.notice small { display: block; color: var(--muted); margin-top: 2px; }
+.notices { display: grid; }
+.req-list { display: grid; gap: 10px; margin-top: 16px; }
+.req { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.req .top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.req .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+.req small { color: var(--muted); font-size: 12px; }
+td .note { min-width: 140px; padding: 6px 8px; font-size: 13px; }
+:root[data-theme="light"] { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s-other: #9a9aa2; }
+.dash-filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.dash-filters select { width: auto; min-width: 110px; }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+@media (max-width: 820px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: grid; gap: 4px; min-width: 0; }
+.tile small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.tile b { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile span { font-size: 12px; color: var(--muted); }
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .dash-grid { grid-template-columns: minmax(0, 1fr); } }
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.chart-head h3 { font-size: 16px; }
+.legend { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.legend i, .wbar i.sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-inline-end: 6px; vertical-align: -1px; }
+.chart-box { position: relative; }
+.chart-box svg { display: block; width: 100%; overflow: visible; }
+.chart-box svg text { fill: var(--muted); font-size: 11px; font-family: var(--body); }
+.chart-box .grid { stroke: var(--line); stroke-width: 1; }
+.chart-box .seg { cursor: pointer; }
+.chart-box .seg:hover, .chart-box .seg.on { opacity: .8; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 7px 10px; border-radius: 8px; white-space: nowrap; z-index: 5; transform: translate(-50%, calc(-100% - 10px)); font-variant-numeric: tabular-nums; }
+.tip b { display: block; font-size: 13px; }
+.wbars { display: grid; gap: 12px; }
+.wbar { display: grid; gap: 5px; }
+.wbar .top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.wbar .top span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
+.wbar .track { height: 8px; background: var(--soft); border-radius: 4px; overflow: hidden; }
+.wbar .fill { height: 100%; border-radius: 4px; }
+.wbar small { font-size: 11px; color: var(--muted); }
+.breakdown { margin-top: 20px; }
+.breakdown .fill { background: var(--accent); opacity: .55; }
+.breakdown .neg .fill { background: var(--danger); opacity: .7; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 8px; font-weight: 600; z-index: 50; }
+.err { color: var(--danger); font-size: 13px; min-height: 1em; margin: 0; }
+.hint { font-size: 12px; color: var(--muted); margin: 0; }
+.lock-tools { display: flex; gap: 6px; }
+[data-theme-toggle], [data-lang-toggle] { display: inline-flex; align-items: center; justify-content: center; }
+nav.tabs [data-theme-toggle], nav.tabs [data-lang-toggle] { padding: 8px 10px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: transparent; color: var(--muted); padding: 8px; border-radius: 7px; cursor: pointer; font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.portal-who { display: flex; gap: 6px 18px; flex-wrap: wrap; color: var(--muted); }
+.portal-who strong { color: var(--ink); }
+.access { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+/* Arabic: letter-spacing and uppercase break joined letters */
+[dir="rtl"] legend, [dir="rtl"] th, [dir="rtl"] .net small, [dir="rtl"] .brand small { letter-spacing: 0; text-transform: none; }
+.ltr { direction: ltr; unicode-bidi: isolate; }
+</style>
+</head>
+<body>
+
+<!-- Lock screen -->
+<section class="lock" id="lock">
+  <form class="lock-card" id="lockForm" autocomplete="off">
+    <div class="row" style="justify-content:space-between"><div class="mark">H</div>
+      <div class="lock-tools"><button class="btn sm" type="button" data-theme-toggle></button><button class="btn sm" type="button" data-lang-toggle></button></div></div>
+    <h1 id="lockTitle">Household Payroll</h1>
+    <p id="lockMsg">Enter your password to open payroll records.</p>
+    <label id="lockUserWrap"><span id="lockUserLabel">Username or ID card no.</span> <input id="lockUser" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
+    <label>Password <input type="password" id="lockPw" required></label>
+    <label id="lockPw2Wrap" hidden>Confirm password <input type="password" id="lockPw2"></label>
+    <p class="err" id="lockErr"></p>
+    <button class="btn primary" type="submit" id="lockBtn">Sign in</button>
+    <p class="hint">Records are stored on your home server. Anyone with this password can see salaries and ID numbers.</p>
+  </form>
+</section>
+
+<!-- App -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">
+        <div class="mark">H</div>
+        <div><small>Domestic staff</small><h1 id="brandName">Household Payroll</h1></div>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="dash" aria-selected="true">Dashboard</button>
+        <button role="tab" data-tab="slip" aria-selected="false">Payslip</button>
+        <button role="tab" data-tab="workers">Workers</button>
+        <button role="tab" data-tab="history">History</button>
+        <button role="tab" data-tab="requests"><span>Advance requests</span><span class="badge" id="reqBadge" hidden></span></button>
+        <button role="tab" data-tab="settings">Settings</button>
+        <button id="lockNow">Sign out</button>
+        <button data-theme-toggle></button>
+        <button data-lang-toggle></button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Dashboard -->
+    <section data-view="dash">
+      <div class="section-head">
+        <div><h2>Dashboard</h2><p>Salaries paid, by month and by worker.</p></div>
+        <div class="dash-filters"><label for="dashYear" style="display:flex;gap:8px;align-items:center">Year <select id="dashYear"></select></label></div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><small>Paid this month</small><b id="kMonth">0</b><span id="kMonthNote"></span></div>
+        <div class="tile"><small>Paid this year</small><b id="kYear">0</b><span id="kYearNote"></span></div>
+        <div class="tile"><small>Average per month</small><b id="kAvg">0</b><span id="kAvgNote"></span></div>
+        <div class="tile"><small>Workers</small><b id="kWorkers">0</b><span id="kWorkersNote"></span></div>
+      </div>
+      <div class="dash-grid">
+        <div class="panel">
+          <div class="chart-head"><h3>Net salary paid per month</h3><span class="hint" id="chartCur"></span></div>
+          <div class="legend" id="dashLegend"></div>
+          <div class="chart-box" id="monthChart" dir="ltr"></div>
+        </div>
+        <div class="panel">
+          <div class="chart-head"><h3>By worker</h3><span class="hint" id="byWorkerYear"></span></div>
+          <div class="wbars" id="byWorker"></div>
+          <div class="breakdown">
+            <div class="chart-head"><h3>Where the money goes</h3></div>
+            <div class="wbars" id="breakdown"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Payslip -->
+    <section data-view="slip" hidden>
+      <div class="section-head">
+        <div><h2>New payslip</h2><p>Fill in the month's pay, then download the PDF.</p></div>
+      </div>
+      <div class="grid2">
+        <form class="panel" id="slipForm">
+          <fieldset>
+            <legend>Worker &amp; period</legend>
+            <div class="fields">
+              <label class="full">Worker <select id="sWorker" required></select></label>
+              <label>Pay month <input type="month" id="sMonth" required></label>
+              <label>Working days <input type="number" id="sDays" min="0" max="31" value="30"></label>
+              <label>Payment date <input type="date" id="sPayDate"></label>
+              <label>Payment method
+                <select id="sMethod"><option value="Cash">Cash</option><option value="Bank transfer">Bank transfer</option><option value="Cheque">Cheque</option></select>
+              </label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Earnings</legend>
+            <div class="fields">
+              <label>Basic salary <input type="number" id="eBasic" min="0" step="0.01" value="0"></label>
+              <label>Housing allowance <input type="number" id="eHousing" min="0" step="0.01" value="0"></label>
+              <label>Food allowance <input type="number" id="eFood" min="0" step="0.01" value="0"></label>
+              <label>Overtime <input type="number" id="eOvertime" min="0" step="0.01" value="0"></label>
+              <label>Bonus <input type="number" id="eBonus" min="0" step="0.01" value="0"></label>
+              <label>Other earnings <input type="number" id="eOther" min="0" step="0.01" value="0"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Deductions</legend>
+            <div class="fields">
+              <label>Salary advance <input type="number" id="dAdvance" min="0" step="0.01" value="0"></label>
+              <label>Absence <input type="number" id="dAbsence" min="0" step="0.01" value="0"></label>
+              <label>Other deductions <input type="number" id="dOther" min="0" step="0.01" value="0"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Notes</legend>
+            <textarea id="sNotes" placeholder="Optional, printed on the payslip"></textarea>
+          </fieldset>
+          <div class="row">
+            <button class="btn primary" type="submit" id="slipBtn">Save &amp; download PDF</button>
+            <button class="btn" type="submit" id="slipPrintBtn" data-action="print">Save &amp; print</button>
+            <span class="hint" id="slipHint"></span>
+          </div>
+        </form>
+
+        <aside class="panel summary">
+          <h3>Summary</h3>
+          <div class="who"><strong id="sumName">No worker selected</strong><span id="sumId">Add a worker first</span></div>
+          <div class="lines" id="sumLines"></div>
+          <div class="net"><small>Net salary</small><div id="sumNet">0.00</div><p id="sumWords"></p></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Workers -->
+    <section data-view="workers" hidden>
+      <div class="section-head">
+        <div><h2>Workers</h2><p>Name and ID number appear on every payslip.</p></div>
+        <button class="btn primary" id="addWorker">Add worker</button>
+      </div>
+      <div class="panel table-wrap" style="padding:0">
+        <table>
+          <thead><tr><th>Name</th><th>ID card no.</th><th>Nationality</th><th>Job title</th><th class="num">Basic salary</th><th></th></tr></thead>
+          <tbody id="workerRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section data-view="history" hidden>
+      <div class="section-head">
+        <div><h2>Payslip history</h2><p>Download any past payslip again.</p></div>
+      </div>
+      <div class="panel table-wrap" style="padding:0">
+        <table>
+          <thead><tr><th>Slip no.</th><th>Month</th><th>Worker</th><th>ID card no.</th><th class="num">Net salary</th><th></th></tr></thead>
+          <tbody id="historyRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Advance requests -->
+    <section data-view="requests" hidden>
+      <div class="section-head"><div><h2>Advance requests</h2><p>Workers ask for a salary advance from their own page.</p></div></div>
+      <div class="panel table-wrap" style="padding:0">
+        <table>
+          <thead><tr><th>Date</th><th>Worker</th><th class="num">Amount</th><th>Reason</th><th>Status</th><th>Reply</th><th></th></tr></thead>
+          <tbody id="reqRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section data-view="settings" hidden>
+      <div class="section-head"><div><h2>Settings</h2><p>Employer details printed at the top of each payslip.</p></div></div>
+      <form class="panel" id="settingsForm">
+        <fieldset>
+          <legend>Employer</legend>
+          <div class="fields">
+            <label class="full">Employer / household name <input id="stEmployer" placeholder="e.g. Al Noor Household"></label>
+            <label class="full">Address <input id="stAddress" placeholder="e.g. Doha, State of Qatar"></label>
+            <label>Phone <input id="stPhone"></label>
+            <label>Country <select id="stCountry"></select></label>
+            <label>Currency code <input id="stCurrency" maxlength="4"></label>
+            <label>Currency name (plural) <input id="stCurName"></label>
+            <label>Sub-unit name <input id="stSubName"></label>
+          </div>
+        </fieldset>
+        <div class="row">
+          <button class="btn primary" type="submit">Save settings</button>
+        </div>
+      </form>
+
+      <div class="panel" style="margin-top:20px">
+        <fieldset>
+          <legend>Backup</legend>
+          <p class="hint" style="margin-bottom:12px">The backup file contains names and ID numbers in plain form. Keep it somewhere private.</p>
+          <div class="row">
+            <button class="btn" id="exportBtn">Download backup</button>
+            <label class="btn" style="display:inline-flex">Restore backup <input type="file" id="importFile" accept=".json" hidden></label>
+          </div>
+        </fieldset>
+        <fieldset style="margin:0">
+          <legend>Employer login</legend>
+          <form class="fields" id="changePwForm">
+            <label>Username <input id="accUser" required autocapitalize="off" spellcheck="false"></label>
+            <label>Current password <input type="password" id="curPw" required></label>
+            <label>New password <input type="password" id="newPw" minlength="4" placeholder="Leave empty to keep it"></label>
+            <label>Confirm <input type="password" id="newPw2"></label>
+            <div class="full row"><button class="btn" type="submit">Save login details</button><p class="err" id="pwErr"></p></div>
+          </form>
+        </fieldset>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Worker portal: a worker sees only their own payslips -->
+<div id="portal" hidden>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">
+        <div class="mark">H</div>
+        <div><small>My payslips</small><h1 id="portalEmployer">Household Payroll</h1></div>
+      </div>
+      <nav class="tabs">
+        <button data-theme-toggle></button>
+        <button data-lang-toggle></button>
+        <button id="portalLogout">Sign out</button>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="section-head">
+      <div><h2>My payslips</h2>
+        <div class="portal-who"><span><strong class="ltr" id="portalName"></strong></span><span>ID card no. <span class="ltr" id="portalQid"></span></span></div>
+      </div>
+    </div>
+    <div class="notices" id="advNotices" role="status"></div>
+    <div class="portal-grid">
+      <div class="panel">
+        <div class="chart-head"><h3>My salary per month</h3>
+          <label style="display:flex;gap:8px;align-items:center">Year <select id="portalYear" style="width:auto"></select></label></div>
+        <div class="chart-box" id="portalChart" dir="ltr"></div>
+      </div>
+      <div class="panel">
+        <div class="chart-head"><h3>Request a salary advance</h3></div>
+        <form class="fields" id="advForm">
+          <label>Amount <input type="number" id="advAmount" min="1" step="0.01" required></label>
+          <label class="full">Reason <textarea id="advReason" maxlength="300" placeholder="Optional"></textarea></label>
+          <div class="full row"><button class="btn primary" type="submit">Send request</button><p class="err" id="advErr"></p></div>
+        </form>
+        <div class="req-list" id="advList"></div>
+      </div>
+    </div>
+    <div class="panel table-wrap" style="padding:0">
+      <table>
+        <thead><tr><th>Month</th><th>Slip no.</th><th class="num">Net salary</th><th></th></tr></thead>
+        <tbody id="portalRows"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Worker dialog -->
+<dialog id="workerDlg">
+  <form id="workerForm">
+    <h3 id="workerDlgTitle">Add worker</h3>
+    <div class="fields">
+      <label class="full">Full name (English) <input id="wName" required></label>
+      <label>ID card no. <input id="wId" required></label>
+      <label>Nationality <input id="wNat"></label>
+      <label>Job title <input id="wJob" placeholder="Housemaid"></label>
+      <label>Passport no. <input id="wPass"></label>
+      <label>Joining date <input type="date" id="wJoin"></label>
+      <label>Basic salary <input type="number" id="wSalary" min="0" step="0.01" value="0"></label>
+      <label class="full">Bank account / IBAN (optional) <input id="wBank"></label>
+    </div>
+    <div class="access">
+      <legend>Online payslips</legend>
+      <p class="hint" id="wAccessState" style="margin-bottom:10px"></p>
+      <div class="fields">
+        <label>Worker's password <input id="wPortalPw" type="text" autocomplete="off" minlength="4"></label>
+        <div class="row" style="align-items:end"><button class="btn danger sm" type="button" id="wRevoke">Remove online access</button></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:20px; justify-content:space-between">
+      <button class="btn danger" type="button" id="wDelete">Delete worker</button>
+      <div class="row">
+        <button class="btn" type="button" id="wCancel">Cancel</button>
+        <button class="btn primary" type="submit">Save worker</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let data = null, editingWorker = null;
+// "ALISSA BARRACA TAPALES" -> "Alissa Barraca Tapales"
+const titleCase = (n) => String(n || "").trim().replace(/\s+/g, " ").toLowerCase().replace(/(^|[\s\-'])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+
+/* ---------- Language (UI only; the PDF stays English) ---------- */
+const AR = {
+  "Household Payroll": "رواتب العمالة المنزلية",
+  "Enter your password to open payroll records.": "أدخل كلمة السر لفتح سجلات الرواتب.",
+  "Password": "كلمة السر", "Confirm password": "تأكيد كلمة السر", "Sign in": "تسجيل الدخول",
+  "Records are stored on your home server. Anyone with this password can see salaries and ID numbers.": "السجلات محفوظة على سيرفر البيت. أي شخص يعرف كلمة السر يقدر يشوف الرواتب وأرقام البطاقات.",
+  "Set up Household Payroll": "إعداد رواتب العمالة المنزلية",
+  "Choose a password. You will need it every time you open the app.": "اختر كلمة سر، بتحتاجها كل مرة تفتح الموقع.",
+  "Create password": "إنشاء كلمة السر",
+  "Domestic staff": "العمالة المنزلية", "Payslip": "قسيمة الراتب", "Workers": "العمّال", "History": "السجل", "Settings": "الإعدادات", "Sign out": "تسجيل الخروج",
+  "Day": "نهاري", "Night": "ليلي",
+  "New payslip": "قسيمة راتب جديدة", "Fill in the month's pay, then download the PDF.": "عبّئ راتب الشهر، وبعدها نزّل أو اطبع القسيمة.",
+  "Worker & period": "العامل والفترة", "Pay month": "شهر الراتب", "Working days": "أيام العمل",
+  "Payment date": "تاريخ الدفع", "Payment method": "طريقة الدفع", "Cash": "نقداً", "Bank transfer": "تحويل بنكي", "Cheque": "شيك",
+  "Earnings": "الاستحقاقات", "Basic salary": "الراتب الأساسي", "Housing allowance": "بدل السكن", "Food allowance": "بدل الأكل",
+  "Overtime": "العمل الإضافي", "Bonus": "مكافأة", "Other earnings": "استحقاقات أخرى",
+  "Deductions": "الخصومات", "Salary advance": "سلفة", "Absence": "غياب", "Other deductions": "خصومات أخرى",
+  "Notes": "ملاحظات", "Optional, printed on the payslip": "اختياري، ينطبع على القسيمة (بالإنجليزي)",
+  "Save & download PDF": "حفظ وتنزيل PDF", "Save & print": "حفظ وطباعة",
+  "Summary": "الملخص", "No worker selected": "ما فيه عامل مختار", "Add a worker first": "أضف عامل أول", "Net salary": "صافي الراتب",
+  "Name and ID number appear on every payslip.": "الاسم ورقم البطاقة يطلعون في كل قسيمة.", "Add worker": "إضافة عامل",
+  "Name": "الاسم", "ID card no.": "رقم البطاقة الشخصية", "Nationality": "الجنسية", "Job title": "المهنة",
+  "Payslip history": "سجل القسائم", "Download any past payslip again.": "نزّل أو اطبع أي قسيمة سابقة.",
+  "Slip no.": "رقم القسيمة", "Month": "الشهر",
+  "Employer details printed at the top of each payslip.": "بيانات صاحب العمل اللي تنطبع أعلى كل قسيمة (اكتبها بالإنجليزي).",
+  "Employer / household name": "اسم صاحب العمل / المنزل", "Address": "العنوان", "Phone": "الهاتف",
+  "Currency code": "رمز العملة", "Currency name (plural)": "اسم العملة (جمع)", "Sub-unit name": "اسم الفكّة", "Save settings": "حفظ الإعدادات",
+  "Backup": "النسخة الاحتياطية",
+  "The backup file contains names and ID numbers in plain form. Keep it somewhere private.": "ملف النسخة الاحتياطية فيه الأسماء وأرقام البطاقات بدون تشفير. احفظه في مكان خاص.",
+  "Download backup": "تنزيل نسخة احتياطية", "Restore backup": "استرجاع نسخة احتياطية",
+  "App password": "كلمة سر الموقع", "Current password": "كلمة السر الحالية", "New password": "كلمة السر الجديدة", "Confirm": "تأكيد",
+  "Change password": "تغيير كلمة السر",
+  "Edit worker": "تعديل العامل", "Full name (English)": "الاسم الكامل (بالإنجليزي)", "Passport no.": "رقم الجواز",
+  "Joining date": "تاريخ المباشرة", "Bank account / IBAN (optional)": "الحساب البنكي / IBAN (اختياري)",
+  "Delete worker": "حذف العامل", "Cancel": "إلغاء", "Save worker": "حفظ العامل", "Select again to delete": "اضغط مرة ثانية للحذف",
+  "Worker deleted": "تم حذف العامل", "Worker updated": "تم تعديل العامل", "Worker added": "تمت إضافة العامل", "Edit": "تعديل",
+  "No workers yet": "ما فيه عمّال",
+  "No workers yet. Select <strong>Add worker</strong> to add your first one.": "ما فيه عمّال. اضغط <strong>إضافة عامل</strong> عشان تضيف أول عامل.",
+  "Enter amounts to see the breakdown.": "اكتب المبالغ عشان يطلع التفصيل.",
+  "Print": "طباعة", "Download PDF": "تنزيل PDF", "Remove": "حذف",
+  "No payslips yet. They appear here after you download one.": "ما فيه قسائم. تطلع هنا بعد ما تحفظ أول قسيمة.",
+  "Payslip removed": "تم حذف القسيمة", "Settings saved": "تم حفظ الإعدادات", "Backup restored": "تم استرجاع النسخة الاحتياطية",
+  "This file is not a Household Payroll backup.": "هذا الملف مو نسخة احتياطية من الموقع.",
+  "The two passwords do not match.": "كلمتا السر مو متطابقتين.", "Password changed": "تم تغيير كلمة السر",
+  "Use at least 4 characters.": "استخدم ٤ أحرف على الأقل.", "Wrong password. Try again.": "كلمة السر غلط، حاول مرة ثانية.",
+  "Too many attempts. Wait a minute and try again.": "محاولات كثيرة، انتظر دقيقة وحاول مرة ثانية.",
+  "Current password is wrong.": "كلمة السر الحالية غلط.", "Please log in.": "سجّل دخول أول.",
+  "Could not save to the server: {msg}": "ما قدرنا نحفظ على السيرفر: {msg}",
+  "PDF library did not load. Check your internet connection and reload.": "مكتبة PDF ما تحمّلت، حدّث الصفحة.",
+  "{no} saved, opening print": "تم حفظ {no}، جاري فتح الطباعة", "{no} saved and downloaded": "تم حفظ {no} وتنزيله",
+  "ID {id} · {month}": "البطاقة {id} · {month}",
+  "Employer": "صاحب العمل", "Worker": "العامل", "My payslips": "قسائمي",
+  "Enter your ID card number and password to see your payslips.": "اكتب رقم بطاقتك وكلمة السر عشان تشوف قسائم راتبك.",
+  "ID card number or password is wrong.": "رقم البطاقة أو كلمة السر غلط.", "Not allowed.": "غير مسموح.",
+  "Online payslips": "القسائم أونلاين", "Worker's password": "كلمة سر العامل", "Remove online access": "إلغاء الدخول أونلاين",
+  "This worker can log in with their ID card number and this password to see their payslips.": "العامل يقدر يدخل برقم بطاقته وكلمة السر هذي ويشوف قسائمه.",
+  "This worker can log in online. Type a new password to change it, or leave it empty to keep it.": "هذا العامل يقدر يدخل أونلاين. اكتب كلمة سر جديدة لتغييرها، أو اتركها فاضية.",
+  "Online": "أونلاين", "Online access removed": "تم إلغاء الدخول أونلاين",
+  "No payslips yet.": "ما فيه قسائم إلى الآن.",
+  "Username": "اسم المستخدم", "Username or ID card no.": "اسم المستخدم أو رقم البطاقة الشخصية",
+  "Employers sign in with their username. Workers sign in with their ID card number.": "صاحب العمل يدخل باسم المستخدم، والعامل يدخل برقم بطاقته الشخصية.", "Employer login": "دخول صاحب العمل", "Leave empty to keep it": "اتركها فاضية عشان تبقى نفسها",
+  "Save login details": "حفظ بيانات الدخول", "Login details saved": "تم حفظ بيانات الدخول",
+  "Wrong username or password. Try again.": "اسم المستخدم أو كلمة السر غلط، حاول مرة ثانية.",
+  "Username must be 3 to 32 letters, numbers, dots, dashes or underscores.": "اسم المستخدم لازم يكون من ٣ إلى ٣٢ حرف إنجليزي أو رقم، ويسمح بالنقطة والشرطة.",
+  "Choose a username and password. You will need them every time you open the app.": "اختر اسم مستخدم وكلمة سر، بتحتاجهم كل مرة تفتح الموقع.",
+  "Enter your username and password to open payroll records.": "اكتب اسم المستخدم وكلمة السر لفتح سجلات الرواتب.",
+  "Dashboard": "لوحة المعلومات", "Salaries paid, by month and by worker.": "الرواتب المدفوعة حسب الشهر وحسب العامل.", "Year": "السنة",
+  "Paid this month": "المدفوع هذا الشهر", "Paid this year": "المدفوع هذه السنة", "Average per month": "المتوسط الشهري",
+  "Net salary paid per month": "صافي الرواتب المدفوعة كل شهر", "By worker": "حسب العامل", "Where the money goes": "توزيع المبالغ",
+  "{n} payslips": "{n} قسيمة", "{n} months with payslips": "{n} شهر فيه قسائم", "{n} with online access": "{n} عندهم دخول أونلاين",
+  "{p}% of the year": "{p}% من السنة", "Total": "المجموع", "No payslips in {y}.": "ما فيه قسائم في {y}.",
+  "Other": "أخرى", "vs last month: {d}": "مقارنة بالشهر الماضي: {d}",
+  "My salary per month": "راتبي كل شهر", "Request a salary advance": "طلب سلفة", "Amount": "المبلغ", "Reason": "السبب",
+  "Optional": "اختياري", "Send request": "إرسال الطلب", "Request sent": "تم إرسال الطلب", "My requests": "طلباتي",
+  "Pending": "بانتظار الرد", "Approved": "موافق عليها", "Rejected": "مرفوضة",
+  "Enter an amount greater than zero.": "اكتب مبلغ أكبر من صفر.",
+  "You already have 3 requests waiting. Wait for a reply first.": "عندك ٣ طلبات بانتظار الرد، انتظر الرد أول.",
+  "Advance requests": "طلبات السلف", "Workers ask for a salary advance from their own page.": "العمّال يطلبون السلفة من صفحتهم.",
+  "Date": "التاريخ", "Status": "الحالة", "Reply": "الرد", "Approve": "موافقة", "Reject": "رفض", "Undo": "تراجع",
+  "Optional note to the worker": "ملاحظة للعامل (اختياري)", "No advance requests yet.": "ما فيه طلبات سلف.",
+  "Request approved": "تمت الموافقة على الطلب", "Request rejected": "تم رفض الطلب", "Reply: {note}": "الرد: {note}",
+  "My salary": "راتبي",
+  "Your salary advance request for {amt} was approved.": "تمت الموافقة على طلب السلفة بمبلغ {amt}.",
+  "Your salary advance request for {amt} was rejected.": "تم رفض طلب السلفة بمبلغ {amt}.",
+  "OK": "تم", "New advance request from {name}": "طلب سلفة جديد من {name}",
+  "Country": "الدولة", "Other country": "دولة أخرى",
+  "Qatar": "قطر", "Saudi Arabia": "السعودية", "United Arab Emirates": "الإمارات", "Kuwait": "الكويت", "Bahrain": "البحرين", "Oman": "عُمان",
+  "Jordan": "الأردن", "Egypt": "مصر",
+  "e.g. Al Noor Household": "بالإنجليزي، مثال: Al Noor Household", "e.g. Doha, State of Qatar": "بالإنجليزي، مثال: Doha, State of Qatar",
+};
+let lang = "en";
+try { lang = localStorage.getItem("householdPayroll.lang") === "ar" ? "ar" : "en"; } catch {}
+function t(en, vars) {
+  let out = lang === "ar" && AR[en] !== undefined ? AR[en] : en;
+  for (const k in vars || {}) out = out.replace("{" + k + "}", vars[k]);
+  return out;
+}
+// Static text: remember each node's English text, then show it in the current language
+const originals = new WeakMap();
+function translateStatic() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => n.parentElement.closest("script, style, tbody, #sumLines") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+  });
+  for (let n; (n = walker.nextNode());) {
+    if (!originals.has(n)) originals.set(n, n.nodeValue);
+    const en = originals.get(n), key = en.trim();
+    if (key && AR[key] !== undefined) n.nodeValue = en.replace(key, t(key));
+  }
+  document.querySelectorAll("[placeholder]").forEach(el => {
+    if (!el.dataset.ph) el.dataset.ph = el.placeholder;
+    el.placeholder = t(el.dataset.ph);
+  });
+}
+const ICONS = {
+  sun: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.6 2.8 3.9 6 3.9 9.5s-1.3 6.7-3.9 9.5c-2.6-2.8-3.9-6-3.9-9.5s1.3-6.7 3.9-9.5z"/></svg>',
+};
+// Menu icons, placed before each menu name
+const NAV_ICONS = {
+  dash: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM13 3v6h8V3zM3 21h8v-6H3z"/>',
+  slip: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h7M9 17h5"/>',
+  workers: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.3c2.1.7 3.5 2.7 3.5 5.7"/>',
+  history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3.5 2"/>',
+  requests: '<rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  signout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+};
+const navSvg = (d) => `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+document.querySelectorAll("nav.tabs [data-tab]").forEach(b => b.insertAdjacentHTML("afterbegin", navSvg(NAV_ICONS[b.dataset.tab])));
+["lockNow", "portalLogout"].forEach(id => $(id).insertAdjacentHTML("afterbegin", navSvg(NAV_ICONS.signout)));
+
+// Icon-only buttons; the label is kept for screen readers and as a hover tooltip
+function renderToggles() {
+  const dark = document.documentElement.dataset.theme !== "light";
+  const themeLabel = t(dark ? "Day" : "Night"), langLabel = lang === "ar" ? "English" : "العربية";
+  document.querySelectorAll("[data-theme-toggle]").forEach(b => { b.innerHTML = dark ? ICONS.sun : ICONS.moon; b.title = themeLabel; b.setAttribute("aria-label", themeLabel); });
+  document.querySelectorAll("[data-lang-toggle]").forEach(b => { b.innerHTML = ICONS.globe; b.title = langLabel; b.setAttribute("aria-label", langLabel); });
+}
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  translateStatic();
+  renderToggles();
+  renderLockText();
+  if (portal) renderPortal();
+  else if (data) { renderWorkers(); renderHistory(); renderWorkerSelect(); updateSummary(); renderDashboard(); renderCountries(); renderRequests(); }
+}
+document.querySelectorAll("[data-lang-toggle]").forEach(b => b.addEventListener("click", () => {
+  lang = lang === "ar" ? "en" : "ar";
+  try { localStorage.setItem("householdPayroll.lang", lang); } catch {}
+  applyLang();
+}));
+document.querySelectorAll("[data-theme-toggle]").forEach(b => b.addEventListener("click", () => {
+  const th = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = th;
+  try { localStorage.setItem("householdPayroll.theme", th); } catch {}
+  renderToggles();
+}));
+
+const defaults = () => ({
+  settings: { employer: "", address: "", phone: "", currency: "QAR", curName: "Qatari Riyals", subName: "Dirhams" },
+  workers: [], slips: [], nextSlip: 1
+});
+
+/* ---------- Server API ---------- */
+async function api(path, method = "GET", body) {
+  const r = await fetch(path, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && !["/api/login", "/api/worker-login", "/api/password"].includes(path)) { location.reload(); throw new Error("logged out"); }
+  if (!r.ok) throw new Error(j.error || "Request failed");
+  return j;
+}
+async function save() {
+  setTimeout(renderDashboard);
+  try { await api("/api/data", "PUT", data); }
+  catch (e) { toast(t("Could not save to the server: {msg}", { msg: t(e.message) })); }
+}
+let requests = [];
+async function loadRequests(notify) {
+  const before = new Set(requests.map(r => r.id));
+  try { requests = await api("/api/requests"); } catch {}
+  if (notify) requests.filter(r => r.status === "pending" && !before.has(r.id)).forEach(r => toast(t("New advance request from {name}", { name: r.name })));
+  renderRequests();
+}
+// Check for new requests every minute while the employer page is open
+setInterval(() => { if (data && !portal && !$("app").hidden && !document.hidden) loadRequests(true); }, 60000);
+function renderRequests() {
+  const pending = requests.filter(r => r.status === "pending").length;
+  $("reqBadge").textContent = pending; $("reqBadge").hidden = !pending;
+  const cur = data?.settings.currency || "QAR";
+  $("reqRows").innerHTML = requests.map(r => `<tr>
+    <td>${dateTime(r.created)}</td><td><strong class="ltr">${esc(r.name)}</strong></td>
+    <td class="num"><span class="ltr">${esc(cur)} ${money(r.amount)}</span></td><td>${esc(r.reason || "-")}</td>
+    <td>${statusChip(r.status)}</td>
+    <td>${r.status === "pending" ? `<input class="note" data-note="${r.id}" maxlength="300" placeholder="${esc(t("Optional note to the worker"))}">` : esc(r.note || "-")}</td>
+    <td class="num"><div class="row" style="justify-content:end">${r.status === "pending"
+      ? `<button class="btn sm primary" data-decide="approved" data-id="${r.id}">${t("Approve")}</button><button class="btn sm danger" data-decide="rejected" data-id="${r.id}">${t("Reject")}</button>`
+      : `<button class="btn sm" data-decide="pending" data-id="${r.id}">${t("Undo")}</button>`}</div></td></tr>`).join("")
+    || `<tr><td colspan="7" class="empty">${t("No advance requests yet.")}</td></tr>`;
+}
+$("reqRows").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-decide]");
+  if (!b) return;
+  const note = document.querySelector(`[data-note="${b.dataset.id}"]`)?.value.trim() || "";
+  try {
+    const r = await api("/api/requests/decide", "POST", { id: b.dataset.id, status: b.dataset.decide, note });
+    requests = requests.map(x => x.id === r.id ? r : x);
+  } catch (err) { toast(t(err.message)); return; }
+  renderRequests();
+  if (b.dataset.decide !== "pending") toast(t(b.dataset.decide === "approved" ? "Request approved" : "Request rejected"));
+});
+let onlineIds = new Set();
+async function loadAccess() { try { onlineIds = new Set(await api("/api/worker-access")); } catch {} }
+async function enterApp() {
+  data = Object.assign(defaults(), (await api("/api/data")) || {});
+  await loadAccess();
+  loadRequests();
+  api("/api/account").then(a => $("accUser").value = a.username).catch(() => {});
+  if (!data.settings.subName && /qatar/i.test(data.settings.curName || "")) data.settings.subName = "Dirhams";
+  let renamed = false;
+  for (const w of [...data.workers, ...data.slips.map(sl => sl.worker)]) {
+    const t = titleCase(w.name);
+    if (t !== w.name) { w.name = t; renamed = true; }
+  }
+  if (renamed) save();
+  $("lock").hidden = true; $("app").hidden = false;
+  boot();
+}
+
+/* ---------- Lock screen ---------- */
+let isNew = false;
+(async () => {
+  const st = await api("/api/status").catch(() => ({}));
+  if (st.loggedIn) return st.role === "worker" ? enterPortal() : enterApp();
+  isNew = !!st.setup;
+  if (isNew) { $("lockPw2Wrap").hidden = false; $("lockPw2").required = true; }
+  renderLockText();
+})();
+function renderLockText() {
+  $("lockUserLabel").textContent = t(isNew ? "Username" : "Username or ID card no.");
+  $("lockTitle").textContent = t(isNew ? "Set up Household Payroll" : "Household Payroll");
+  $("lockMsg").textContent = t(isNew ? "Choose a username and password. You will need them every time you open the app."
+    : "Employers sign in with their username. Workers sign in with their ID card number.");
+  $("lockBtn").textContent = t(isNew ? "Create password" : "Sign in");
+}
+$("lockForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw = $("lockPw").value;
+  $("lockErr").textContent = "";
+  if (isNew && pw !== $("lockPw2").value) { $("lockErr").textContent = t("The two passwords do not match."); return; }
+  let res;
+  try { res = await api("/api/login", "POST", { username: $("lockUser").value.trim(), password: pw }); }
+  catch (err) { $("lockErr").textContent = t(err.message); return; }
+  $("lockPw").value = ""; $("lockPw2").value = "";
+  res.role === "worker" ? enterPortal() : enterApp();
+});
+$("lockNow").addEventListener("click", async () => { await api("/api/logout", "POST").catch(() => {}); location.reload(); });
+
+/* ---------- Worker portal ---------- */
+let portal = null;
+async function enterPortal() {
+  portal = await api("/api/my-slips");
+  data = { settings: portal.settings || {}, workers: [], slips: [] }; // makePdf reads data.settings
+  $("lock").hidden = true; $("portal").hidden = false;
+  loadPdfFonts();
+  renderPortal();
+}
+function renderPortal() {
+  if (!portal) return;
+  $("portalEmployer").textContent = portal.settings?.employer || t("Household Payroll");
+  $("portalName").textContent = portal.worker.name;
+  $("portalQid").textContent = portal.worker.idNo;
+  // Salary chart: one series, so no legend; the title names it
+  const years = [...new Set(portal.slips.map(s => s.month?.slice(0, 4)).filter(Boolean))].sort().reverse();
+  if (!years.length) years.push(String(new Date().getFullYear()));
+  const sel = years.includes($("portalYear").value) ? $("portalYear").value : years[0];
+  $("portalYear").innerHTML = years.map(y => `<option${y === sel ? " selected" : ""}>${y}</option>`).join("");
+  const me = { id: "me", name: portal.worker.name };
+  const mine = portal.slips.filter(s => s.month?.startsWith(sel)).map(s => ({ ...s, worker: { ...s.worker, id: "me" } }));
+  drawMonthChart(sel, mine, [me], portal.settings?.currency || "QAR", "portalChart", () => "var(--s1)");
+  renderAdvances();
+  $("portalRows").innerHTML = portal.slips.map((s, i) => `<tr>
+    <td>${uiMonth(s.month)}</td><td class="mono">${esc(s.no)}</td>
+    <td class="num"><span class="ltr">${esc(s.currency)} ${money(s.net)}</span></td>
+    <td class="num"><div class="row" style="justify-content:end"><button class="btn sm" data-ppr="${i}">${t("Print")}</button><button class="btn sm" data-pdl="${i}">${t("Download PDF")}</button></div></td></tr>`).join("")
+    || `<tr><td colspan="4" class="empty">${t("No payslips yet.")}</td></tr>`;
+}
+$("portalRows").addEventListener("click", (e) => {
+  const pr = e.target.closest("[data-ppr]"), dl = e.target.closest("[data-pdl]");
+  if (pr) makePdf(portal.slips[+pr.dataset.ppr], "print");
+  if (dl) makePdf(portal.slips[+dl.dataset.pdl]);
+});
+const STATUS = { pending: "Pending", approved: "Approved", rejected: "Rejected" };
+const statusChip = (st) => `<span class="status ${st}">${t(STATUS[st] || st)}</span>`;
+const dateTime = (iso) => iso ? new Date(iso).toLocaleDateString(lang === "ar" ? "ar-u-nu-latn" : "en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
+function renderAdvances() {
+  const cur = portal.settings?.currency || "QAR";
+  // Decisions the worker has not acknowledged yet
+  $("advNotices").innerHTML = (portal.requests || []).filter(r => r.status !== "pending" && r.seen === false).map(r => `<div class="notice ${r.status}">
+      <div><p>${t(r.status === "approved" ? "Your salary advance request for {amt} was approved." : "Your salary advance request for {amt} was rejected.", { amt: `⁦${esc(cur)} ${money(r.amount)}⁩` })}</p>
+      ${r.note ? `<small>${esc(t("Reply: {note}", { note: r.note }))}</small>` : ""}</div>
+      <button class="btn sm" data-ack>${t("OK")}</button></div>`).join("");
+  $("advList").innerHTML = (portal.requests || []).map(r => `<div class="req">
+      <div class="top"><span class="amt ltr">${esc(cur)} ${money(r.amount)}</span>${statusChip(r.status)}</div>
+      <small>${dateTime(r.created)}${r.reason ? " · " + esc(r.reason) : ""}</small>
+      ${r.note ? `<small>${esc(t("Reply: {note}", { note: r.note }))}</small>` : ""}</div>`).join("");
+}
+$("portalYear").addEventListener("change", renderPortal);
+$("advNotices").addEventListener("click", async (e) => {
+  if (!e.target.closest("[data-ack]")) return;
+  await api("/api/requests/seen", "POST").catch(() => {});
+  (portal.requests || []).forEach(r => { if (r.status !== "pending") r.seen = true; });
+  renderAdvances();
+});
+// Check for replies every minute while the page is open
+setInterval(async () => {
+  if (!portal || document.hidden) return;
+  try { portal = await api("/api/my-slips"); renderPortal(); } catch {}
+}, 60000);
+$("advForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("advErr").textContent = "";
+  try {
+    const r = await api("/api/advance-request", "POST", { amount: $("advAmount").value, reason: $("advReason").value.trim() });
+    portal.requests = [r, ...(portal.requests || [])];
+  } catch (err) { $("advErr").textContent = t(err.message); return; }
+  e.target.reset(); renderAdvances(); toast(t("Request sent"));
+});
+$("portalLogout").addEventListener("click", async () => { await api("/api/logout", "POST").catch(() => {}); location.reload(); });
+
+/* ---------- Helpers ---------- */
+const money = (n) => (Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const num = (id) => Math.max(0, parseFloat($(id).value) || 0);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const monthLabel = (ym) => { if (!ym) return ""; const [y, m] = ym.split("-"); return new Date(+y, +m - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" }); };
+const uiMonth = (ym) => { if (!ym) return ""; const [y, m] = ym.split("-"); return new Date(+y, +m - 1, 1).toLocaleString(lang === "ar" ? "ar-u-nu-latn" : "en-US", { month: "long", year: "numeric" }); };
+const dateLabel = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-";
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2800); }
+
+function inWords(amount) {
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const w = (n) => n < 20 ? ones[n]
+    : n < 100 ? tens[Math.floor(n / 10)] + (n % 10 ? "-" + ones[n % 10] : "")
+    : n < 1000 ? ones[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + w(n % 100) : "")
+    : n < 1e6 ? w(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + w(n % 1000) : "")
+    : w(Math.floor(n / 1e6)) + " Million" + (n % 1e6 ? " " + w(n % 1e6) : "");
+  const s = data.settings;
+  const whole = Math.floor(amount + 1e-9), frac = Math.round((amount - whole) * 100);
+  let out = (whole ? w(whole) : "Zero") + " " + (s.curName || s.currency);
+  if (frac) out += " and " + w(frac) + " " + (s.subName || "");
+  return out.trim() + " Only";
+}
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+function showTab(name) {
+  if (name === "requests" && data && !portal) loadRequests();
+  if (name === "dash") requestAnimationFrame(renderDashboard);
+  document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
+  document.querySelectorAll("[data-view]").forEach(v => v.hidden = v.dataset.view !== name);
+}
+
+/* ---------- Dashboard ---------- */
+const SERIES = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"];
+// Colour follows the worker (their position in the workers list), never their rank
+function workerColor(id) {
+  const i = data.workers.findIndex(w => w.id === id);
+  return `var(${i >= 0 && i < SERIES.length ? SERIES[i] : "--s-other"})`;
+}
+const shortMoney = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? Math.round(n / 1000) + "k" : n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(Math.round(n));
+const uiShortMonth = (m) => new Date(2000, m, 1).toLocaleString(lang === "ar" ? "ar-u-nu-latn" : "en-US", { month: "short" });
+function renderDashboard() {
+  if (!data || $("app").hidden) return;
+  const cur = data.settings.currency || "QAR";
+  const years = [...new Set(data.slips.map(s => s.month?.slice(0, 4)).filter(Boolean))].sort().reverse();
+  const thisYear = String(new Date().getFullYear());
+  if (!years.includes(thisYear)) years.unshift(thisYear);
+  const sel = $("dashYear").value && years.includes($("dashYear").value) ? $("dashYear").value : years[0];
+  $("dashYear").innerHTML = years.map(y => `<option${y === sel ? " selected" : ""}>${y}</option>`).join("");
+  const slips = data.slips.filter(s => s.month?.startsWith(sel));
+
+  // Tiles
+  const nowYm = new Date().toISOString().slice(0, 7);
+  const prevYm = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
+  const sumFor = (ym) => data.slips.filter(s => s.month === ym).reduce((a, s) => a + s.net, 0);
+  const monthTotal = sumFor(nowYm), prevTotal = sumFor(prevYm);
+  const yearTotal = slips.reduce((a, s) => a + s.net, 0);
+  const monthsPaid = new Set(slips.map(s => s.month)).size;
+  $("kMonth").textContent = `${cur} ${money(monthTotal)}`;
+  const diff = monthTotal - prevTotal;
+  $("kMonthNote").textContent = prevTotal ? t("vs last month: {d}", { d: "⁦" + (diff >= 0 ? "+" : "−") + money(Math.abs(diff)) + "⁩" }) : uiMonth(nowYm);
+  $("kYear").textContent = `${cur} ${money(yearTotal)}`;
+  $("kYearNote").textContent = t("{n} payslips", { n: slips.length });
+  $("kAvg").textContent = `${cur} ${money(monthsPaid ? yearTotal / monthsPaid : 0)}`;
+  $("kAvgNote").textContent = t("{n} months with payslips", { n: monthsPaid });
+  $("kWorkers").textContent = data.workers.length;
+  $("kWorkersNote").textContent = t("{n} with online access", { n: data.workers.filter(w => onlineIds.has(w.id)).length });
+  ["kMonth", "kYear", "kAvg"].forEach(id => $(id).dir = "ltr");
+
+  // Per worker totals for the year (workers order, then any removed workers)
+  const ids = [...data.workers.map(w => w.id), ...new Set(slips.map(s => s.worker.id).filter(id => !data.workers.some(w => w.id === id)))];
+  const nameOf = (id) => data.workers.find(w => w.id === id)?.name || slips.find(s => s.worker.id === id)?.worker.name || "?";
+  const perWorker = ids.map(id => ({ id, name: nameOf(id), total: slips.filter(s => s.worker.id === id).reduce((a, s) => a + s.net, 0) }))
+    .filter(w => w.total > 0 || data.workers.some(x => x.id === w.id));
+  const series = perWorker.filter(w => w.total > 0);
+
+  $("dashLegend").innerHTML = series.length > 1 ? series.map(w => `<span><i style="background:${workerColor(w.id)}"></i><span class="ltr">${esc(w.name)}</span></span>`).join("") : "";
+  $("chartCur").textContent = cur;
+  $("byWorkerYear").textContent = sel;
+  drawMonthChart(sel, slips, series, cur);
+
+  const maxW = Math.max(1, ...perWorker.map(w => w.total));
+  $("byWorker").innerHTML = perWorker.length ? perWorker.sort((a, b) => b.total - a.total).map(w => `<div class="wbar">
+      <div class="top"><span><i class="sw" style="background:${workerColor(w.id)}"></i><span class="ltr">${esc(w.name)}</span></span><span class="ltr">${money(w.total)}</span></div>
+      <div class="track"><div class="fill" style="width:${(w.total / maxW * 100).toFixed(1)}%;background:${workerColor(w.id)}"></div></div>
+      <small>${t("{p}% of the year", { p: yearTotal ? Math.round(w.total / yearTotal * 100) : 0 })}</small></div>`).join("")
+    : `<p class="hint">${t("No workers yet")}</p>`;
+
+  // Earnings and deductions by type for the year
+  const add = (map, rows) => rows.forEach(([k, v]) => map.set(k, (map.get(k) || 0) + v));
+  const earn = new Map(), ded = new Map();
+  slips.forEach(s => { add(earn, s.earnings); add(ded, s.deductions); });
+  const items = [...[...earn].map(([k, v]) => ({ k, v, neg: false })), ...[...ded].map(([k, v]) => ({ k, v, neg: true }))].filter(x => x.v > 0);
+  const maxB = Math.max(1, ...items.map(x => x.v));
+  $("breakdown").innerHTML = items.length ? items.map(x => `<div class="wbar${x.neg ? " neg" : ""}">
+      <div class="top"><span>${t(x.k)}</span><span class="ltr">${x.neg ? "− " : ""}${money(x.v)}</span></div>
+      <div class="track"><div class="fill" style="width:${(x.v / maxB * 100).toFixed(1)}%"></div></div></div>`).join("")
+    : `<p class="hint">${t("No payslips in {y}.", { y: sel })}</p>`;
+}
+function drawMonthChart(year, slips, series, cur, boxId = "monthChart", colorOf = workerColor) {
+  const box = $(boxId);
+  const W = Math.max(300, box.clientWidth || 600), H = 260, L = 44, Rp = 8, T = 10, B = 26;
+  const months = Array.from({ length: 12 }, (_, m) => `${year}-${String(m + 1).padStart(2, "0")}`);
+  const stacks = months.map(ym => series.map(w => ({ w, v: slips.filter(s => s.month === ym && s.worker.id === w.id).reduce((a, s) => a + s.net, 0) })));
+  const totals = stacks.map(st => st.reduce((a, x) => a + x.v, 0));
+  const maxT = Math.max(...totals);
+  if (!maxT) { box.innerHTML = `<p class="empty">${t("No payslips in {y}.", { y: year })}</p>`; return; }
+  // Round the axis top to a clean step
+  const raw = maxT / 4, mag = 10 ** Math.floor(Math.log10(raw)), step = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map(f => f * mag).find(v => v >= raw);
+  const top = step * 4, ph = H - T - B, slot = (W - L - Rp) / 12, bw = Math.min(36, slot * 0.62);
+  const y = (v) => T + ph - v / top * ph;
+  let g = "";
+  for (let i = 0; i <= 4; i++) {
+    const v = step * i, yy = y(v);
+    g += `<line class="grid" x1="${L}" x2="${W - Rp}" y1="${yy}" y2="${yy}"${i ? ' stroke-dasharray="2 4"' : ""}/>`;
+    g += `<text x="${L - 8}" y="${yy + 4}" text-anchor="end">${shortMoney(v)}</text>`;
+  }
+  stacks.forEach((st, m) => {
+    const x = L + slot * m + (slot - bw) / 2;
+    let base = 0;
+    const segs = st.filter(s => s.v > 0);
+    segs.forEach((s, i) => {
+      const y1 = y(base + s.v), y0 = y(base), h = Math.max(1, y0 - y1 - (i < segs.length - 1 ? 2 : 0));
+      const isTop = i === segs.length - 1, r = isTop ? Math.min(4, h / 2) : 0;
+      // Top segment gets rounded upper corners; 2px surface gap between segments
+      const d = `M${x},${y1 + h} V${y1 + r} Q${x},${y1} ${x + r},${y1} H${x + bw - r} Q${x + bw},${y1} ${x + bw},${y1 + r} V${y1 + h} Z`;
+      g += `<path class="seg" d="${d}" fill="${colorOf(s.w.id)}" data-m="${m}" data-name="${esc(s.w.name)}" data-v="${s.v}"/>`;
+      base += s.v;
+    });
+    g += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${uiShortMonth(m)}</text>`;
+  });
+  box.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t("Net salary paid per month"))}">${g}</svg><div class="tip" hidden></div>`;
+  const tip = box.querySelector(".tip");
+  box.querySelectorAll(".seg").forEach(el => {
+    el.addEventListener("mouseenter", () => {
+      const m = +el.dataset.m;
+      tip.innerHTML = `<b>${uiMonth(months[m])}</b><span class="ltr">${esc(el.dataset.name)}: ${cur} ${money(+el.dataset.v)}</span><br>${t("Total")}: <span class="ltr">${cur} ${money(totals[m])}</span>`;
+      const bb = el.getBBox();
+      tip.style.left = (bb.x + bb.width / 2) + "px"; tip.style.top = bb.y + "px"; tip.hidden = false;
+    });
+    el.addEventListener("mouseleave", () => tip.hidden = true);
+  });
+}
+$("dashYear").addEventListener("change", renderDashboard);
+let resizeTimer;
+addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { renderDashboard(); if (portal) renderPortal(); }, 150); });
+
+/* ---------- Boot ---------- */
+function boot() {
+  const now = new Date();
+  $("sMonth").value = now.toISOString().slice(0, 7);
+  $("sPayDate").value = now.toISOString().slice(0, 10);
+  loadPdfFonts();
+  fillSettings(); renderWorkers(); renderHistory(); renderWorkerSelect(); updateSummary();
+  showTab(data.workers.length ? "dash" : "workers");
+}
+
+/* ---------- Workers ---------- */
+function renderWorkers() {
+  const rows = data.workers.map(w => `<tr>
+    <td><strong class="ltr">${esc(w.name)}</strong>${onlineIds.has(w.id) ? ` <span class="chip">${t("Online")}</span>` : ""}</td><td class="mono"><span class="ltr">${esc(w.idNo)}</span></td><td>${esc(w.nat || "-")}</td>
+    <td>${esc(w.job || "-")}</td><td class="num">${money(w.salary)}</td>
+    <td class="num"><div class="row" style="justify-content:end">
+      <button class="btn sm" data-pay="${w.id}">${t("Payslip")}</button><button class="btn sm" data-edit="${w.id}">${t("Edit")}</button></div></td></tr>`).join("");
+  $("workerRows").innerHTML = rows || `<tr><td colspan="6" class="empty">${t("No workers yet. Select <strong>Add worker</strong> to add your first one.")}</td></tr>`;
+  $("brandName").textContent = data.settings.employer ? data.settings.employer : t("Household Payroll");
+}
+$("workerRows").addEventListener("click", (e) => {
+  const edit = e.target.closest("[data-edit]"), pay = e.target.closest("[data-pay]");
+  if (edit) openWorker(data.workers.find(w => w.id === edit.dataset.edit));
+  if (pay) { $("sWorker").value = pay.dataset.pay; onWorkerChange(); showTab("slip"); }
+});
+$("addWorker").addEventListener("click", () => openWorker(null));
+function openWorker(w) {
+  editingWorker = w;
+  $("workerDlgTitle").textContent = t(w ? "Edit worker" : "Add worker");
+  $("wDelete").hidden = !w;
+  $("wName").value = w?.name || ""; $("wId").value = w?.idNo || ""; $("wNat").value = w?.nat || "";
+  $("wJob").value = w?.job || ""; $("wPass").value = w?.passport || ""; $("wJoin").value = w?.join || "";
+  $("wSalary").value = w?.salary ?? 0; $("wBank").value = w?.bank || "";
+  $("wPortalPw").value = "";
+  const online = !!w && onlineIds.has(w.id);
+  $("wRevoke").hidden = !online;
+  $("wAccessState").textContent = t(online ? "This worker can log in online. Type a new password to change it, or leave it empty to keep it."
+    : "This worker can log in with their ID card number and this password to see their payslips.");
+  $("workerDlg").showModal();
+}
+$("wCancel").addEventListener("click", () => $("workerDlg").close());
+$("wRevoke").addEventListener("click", async () => {
+  try { await api("/api/worker-password", "POST", { workerId: editingWorker.id, password: "" }); }
+  catch (err) { toast(t(err.message)); return; }
+  onlineIds.delete(editingWorker.id);
+  $("workerDlg").close(); renderWorkers(); toast(t("Online access removed"));
+});
+$("wDelete").addEventListener("click", async () => {
+  const btn = $("wDelete");
+  if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = t("Select again to delete"); setTimeout(() => { btn.dataset.confirm = ""; btn.textContent = t("Delete worker"); }, 3000); return; }
+  btn.dataset.confirm = ""; btn.textContent = t("Delete worker");
+  data.workers = data.workers.filter(w => w.id !== editingWorker.id);
+  await save(); $("workerDlg").close(); renderWorkers(); renderWorkerSelect(); updateSummary(); toast(t("Worker deleted"));
+});
+$("workerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const w = editingWorker || { id: uid() };
+  Object.assign(w, { name: titleCase($("wName").value), idNo: $("wId").value.trim(), nat: $("wNat").value.trim(), job: $("wJob").value.trim(),
+    passport: $("wPass").value.trim(), join: $("wJoin").value, salary: parseFloat($("wSalary").value) || 0, bank: $("wBank").value.trim() });
+  const portalPw = $("wPortalPw").value.trim();
+  if (portalPw && portalPw.length < 4) { $("wPortalPw").focus(); toast(t("Use at least 4 characters.")); return; }
+  if (!editingWorker) data.workers.push(w);
+  await save();
+  if (portalPw) {
+    try { await api("/api/worker-password", "POST", { workerId: w.id, password: portalPw }); onlineIds.add(w.id); }
+    catch (err) { toast(t(err.message)); }
+  }
+  $("workerDlg").close(); renderWorkers(); renderWorkerSelect(w.id); updateSummary();
+  toast(t(editingWorker ? "Worker updated" : "Worker added"));
+});
+
+/* ---------- Payslip form ---------- */
+function renderWorkerSelect(selectId) {
+  const cur = selectId || $("sWorker").value;
+  $("sWorker").innerHTML = data.workers.length
+    ? data.workers.map(w => `<option value="${w.id}">${esc(w.name)} — ${esc(w.idNo)}</option>`).join("")
+    : `<option value="">${t("No workers yet")}</option>`;
+  if (cur && data.workers.some(w => w.id === cur)) $("sWorker").value = cur;
+  onWorkerChange();
+}
+function onWorkerChange() {
+  const w = data.workers.find(x => x.id === $("sWorker").value);
+  $("eBasic").value = w ? w.salary : 0;
+  $("slipBtn").disabled = $("slipPrintBtn").disabled = !w;
+  updateSummary();
+}
+$("sWorker").addEventListener("change", onWorkerChange);
+$("slipForm").addEventListener("input", updateSummary);
+
+function readSlip() {
+  const earnings = [["Basic salary", num("eBasic")], ["Housing allowance", num("eHousing")], ["Food allowance", num("eFood")],
+    ["Overtime", num("eOvertime")], ["Bonus", num("eBonus")], ["Other earnings", num("eOther")]];
+  const deductions = [["Salary advance", num("dAdvance")], ["Absence", num("dAbsence")], ["Other deductions", num("dOther")]];
+  const gross = earnings.reduce((a, [, v]) => a + v, 0), ded = deductions.reduce((a, [, v]) => a + v, 0);
+  return { earnings, deductions, gross, ded, net: Math.max(0, gross - ded) };
+}
+function updateSummary() {
+  const w = data.workers.find(x => x.id === $("sWorker").value);
+  const r = readSlip(), c = data.settings.currency;
+  $("sumName").textContent = w ? w.name : t("No worker selected");
+  $("sumId").textContent = w ? t("ID {id} · {month}", { id: w.idNo, month: uiMonth($("sMonth").value) }) : t("Add a worker first");
+  const lines = r.earnings.filter(([, v]) => v).map(([k, v]) => `<div><span>${t(k)}</span><span>${money(v)}</span></div>`)
+    .concat(r.deductions.filter(([, v]) => v).map(([k, v]) => `<div class="neg"><span>${t(k)}</span><span class="ltr">− ${money(v)}</span></div>`));
+  $("sumLines").innerHTML = lines.join("") || `<div><span class="hint">${t("Enter amounts to see the breakdown.")}</span></div>`;
+  $("sumNet").textContent = `${c} ${money(r.net)}`;
+  $("sumNet").dir = $("sumWords").dir = "ltr";
+  $("sumWords").textContent = inWords(r.net);
+}
+
+$("slipForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const w = data.workers.find(x => x.id === $("sWorker").value);
+  if (!w) return;
+  const r = readSlip();
+  const slip = {
+    no: "PS-" + String(data.nextSlip++).padStart(5, "0"), created: new Date().toISOString(),
+    month: $("sMonth").value, days: $("sDays").value, payDate: $("sPayDate").value, method: $("sMethod").value, notes: $("sNotes").value.trim(),
+    worker: { ...w }, ...r, currency: data.settings.currency, employer: { ...data.settings }
+  };
+  data.slips.unshift(slip);
+  await save(); renderHistory();
+  const action = e.submitter?.dataset.action === "print" ? "print" : "save";
+  makePdf(slip, action);
+  toast(t(action === "print" ? "{no} saved, opening print" : "{no} saved and downloaded", { no: slip.no }));
+});
+
+/* ---------- History ---------- */
+function renderHistory() {
+  $("historyRows").innerHTML = data.slips.map((s, i) => `<tr>
+    <td class="mono">${s.no}</td><td>${uiMonth(s.month)}</td><td><strong class="ltr">${esc(s.worker.name)}</strong></td>
+    <td class="mono"><span class="ltr">${esc(s.worker.idNo)}</span></td><td class="num"><span class="ltr">${esc(s.currency)} ${money(s.net)}</span></td>
+    <td class="num"><div class="row" style="justify-content:end"><button class="btn sm" data-pr="${i}">${t("Print")}</button><button class="btn sm" data-dl="${i}">${t("Download PDF")}</button>
+    <button class="btn sm danger" data-rm="${i}">${t("Remove")}</button></div></td></tr>`).join("")
+    || `<tr><td colspan="6" class="empty">${t("No payslips yet. They appear here after you download one.")}</td></tr>`;
+}
+$("historyRows").addEventListener("click", async (e) => {
+  const dl = e.target.closest("[data-dl]"), rm = e.target.closest("[data-rm]");
+  const pr = e.target.closest("[data-pr]");
+  if (dl) makePdf(data.slips[+dl.dataset.dl]);
+  if (pr) makePdf(data.slips[+pr.dataset.pr], "print");
+  if (rm) {
+    if (rm.dataset.confirm !== "1") { rm.dataset.confirm = "1"; rm.textContent = t("Confirm"); setTimeout(() => { rm.dataset.confirm = ""; rm.textContent = t("Remove"); }, 3000); return; }
+    data.slips.splice(+rm.dataset.rm, 1); await save(); renderHistory(); toast(t("Payslip removed"));
+  }
+});
+
+/* ---------- Settings ---------- */
+// Choosing a country fills in its currency; the currency fields stay editable
+const COUNTRIES = {
+  QA: { name: "Qatar", currency: "QAR", curName: "Qatari Riyals", subName: "Dirhams" },
+  SA: { name: "Saudi Arabia", currency: "SAR", curName: "Saudi Riyals", subName: "Halalas" },
+  AE: { name: "United Arab Emirates", currency: "AED", curName: "UAE Dirhams", subName: "Fils" },
+  KW: { name: "Kuwait", currency: "KWD", curName: "Kuwaiti Dinars", subName: "Fils" },
+  BH: { name: "Bahrain", currency: "BHD", curName: "Bahraini Dinars", subName: "Fils" },
+  OM: { name: "Oman", currency: "OMR", curName: "Omani Rials", subName: "Baisa" },
+  JO: { name: "Jordan", currency: "JOD", curName: "Jordanian Dinars", subName: "Piasters" },
+  EG: { name: "Egypt", currency: "EGP", curName: "Egyptian Pounds", subName: "Piasters" },
+  XX: { name: "Other country" },
+};
+// Settings saved before this existed: infer the country from the currency code
+const countryOf = (s) => s.country || Object.keys(COUNTRIES).find(k => COUNTRIES[k].currency && /^(QR|QAR)$/i.test(s.currency) ? k === "QA" : COUNTRIES[k].currency === String(s.currency).toUpperCase()) || "XX";
+function renderCountries() {
+  const cur = $("stCountry").value || (data ? countryOf(data.settings) : "QA");
+  $("stCountry").innerHTML = Object.entries(COUNTRIES).map(([k, c]) => `<option value="${k}">${t(c.name)}</option>`).join("");
+  $("stCountry").value = cur;
+}
+$("stCountry").addEventListener("change", () => {
+  const c = COUNTRIES[$("stCountry").value];
+  if (!c.currency) return;
+  $("stCurrency").value = c.currency; $("stCurName").value = c.curName; $("stSubName").value = c.subName;
+});
+function fillSettings() {
+  $("stCountry").value = "";
+  renderCountries();
+  $("stCountry").value = countryOf(data.settings);
+  const s = data.settings;
+  $("stEmployer").value = s.employer; $("stAddress").value = s.address; $("stPhone").value = s.phone;
+  $("stCurrency").value = s.currency; $("stCurName").value = s.curName; $("stSubName").value = s.subName;
+}
+$("settingsForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  Object.assign(data.settings, { employer: $("stEmployer").value.trim(), address: $("stAddress").value.trim(), phone: $("stPhone").value.trim(),
+    country: $("stCountry").value, currency: $("stCurrency").value.trim().toUpperCase() || "QAR", curName: $("stCurName").value.trim(), subName: $("stSubName").value.trim() });
+  await save(); renderWorkers(); updateSummary(); toast(t("Settings saved"));
+});
+$("exportBtn").addEventListener("click", async () => {
+  const blob = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `household-payroll-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+$("importFile").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!Array.isArray(d.workers) || !Array.isArray(d.slips)) throw new Error();
+    data = Object.assign(defaults(), d);
+    await save(); boot(); toast(t("Backup restored"));
+  } catch { toast(t("This file is not a Household Payroll backup.")); }
+  e.target.value = "";
+});
+$("changePwForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if ($("newPw").value !== $("newPw2").value) { $("pwErr").textContent = t("The two passwords do not match."); return; }
+  try { await api("/api/password", "POST", { current: $("curPw").value, next: $("newPw").value, username: $("accUser").value.trim() }); }
+  catch (err) { $("pwErr").textContent = t(err.message); return; }
+  const user = $("accUser").value.trim();
+  $("pwErr").textContent = ""; e.target.reset(); $("accUser").value = user; toast(t("Login details saved"));
+});
+
+/* ---------- PDF ---------- */
+// Roboto TTFs are embedded in each PDF; falls back to Helvetica if they fail to load
+let pdfFonts = null;
+async function loadPdfFonts() {
+  const b64 = (buf) => { let s = ""; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+  try {
+    const get = async (f) => b64(await (await fetch("/fonts/" + f)).arrayBuffer());
+    pdfFonts = { normal: await get("Roboto-Regular.ttf"), bold: await get("Roboto-Bold.ttf"), italic: await get("Roboto-Italic.ttf") };
+  } catch { pdfFonts = null; }
+}
+function makePdf(s, action = "save") {
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) { toast(t("PDF library did not load. Check your internet connection and reload.")); return; }
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  let F = "helvetica";
+  if (pdfFonts) {
+    for (const [style, data64] of Object.entries(pdfFonts)) { doc.addFileToVFS(`Roboto-${style}.ttf`, data64); doc.addFont(`Roboto-${style}.ttf`, "Roboto", style); }
+    F = "Roboto";
+  }
+  const W = 210, M = 16, cur = s.currency, emp = s.employer;
+  const INK = [34, 34, 38], ACC = [85, 85, 90], BRASS = [150, 150, 155], MUTED = [110, 110, 115], LINE = [215, 215, 218], SOFT = [244, 244, 245];
+
+  // Header band
+  doc.setFillColor(...SOFT); doc.rect(0, 0, W, 42, "F");
+  doc.setFillColor(...BRASS); doc.rect(0, 42, W, 0.8, "F");
+  doc.setTextColor(...INK);
+  doc.setFont(F, "bold"); doc.setFontSize(20);
+  doc.text(emp.employer || "Household Payroll", M, 18);
+  doc.setFont(F, "normal"); doc.setFontSize(9); doc.setTextColor(...MUTED);
+  const contact = [emp.address, emp.phone ? "Tel: " + emp.phone : ""].filter(Boolean);
+  contact.forEach((t, i) => doc.text(t, M, 25 + i * 5));
+  doc.setTextColor(...MUTED);
+  doc.setFont(F, "bold"); doc.setFontSize(8.5);
+  doc.text("S A L A R Y   S L I P", W - M, 15, { align: "right" });
+  doc.setTextColor(...INK); doc.setFont(F, "bold"); doc.setFontSize(17);
+  doc.text(monthLabel(s.month), W - M, 24, { align: "right" });
+  doc.setFont(F, "normal"); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+  doc.text(`Slip No. ${s.no}   ·   Issued ${dateLabel(s.created.slice(0, 10))}`, W - M, 31, { align: "right" });
+
+  // Employee details
+  let y = 54;
+  doc.setTextColor(...ACC); doc.setFont(F, "bold"); doc.setFontSize(8);
+  doc.text("EMPLOYEE DETAILS", M, y);
+  y += 3;
+  doc.setDrawColor(...LINE); doc.setFillColor(...SOFT); doc.roundedRect(M, y, W - 2 * M, 44, 2, 2, "FD");
+  const wk = s.worker;
+  const left = [["Employee name", wk.name], ["ID Card No.", wk.idNo], ["Nationality", wk.nat || "-"], ["Job title", wk.job || "Domestic Worker"]];
+  const right = [["Passport No.", wk.passport || "-"], ["Joining date", dateLabel(wk.join)], ["Working days", String(s.days || "-")],
+    ["Payment", `${s.method} · ${dateLabel(s.payDate)}`]];
+  const colX = [M + 6, W / 2 + 4];
+  [left, right].forEach((col, ci) => col.forEach(([k, v], i) => {
+    const yy = y + 9 + i * 9.5;
+    doc.setFont(F, "normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+    doc.text(k.toUpperCase(), colX[ci], yy - 3.2);
+    doc.setFont(F, ci === 0 && i < 2 ? "bold" : "normal");
+    doc.setFontSize(ci === 0 && i === 0 ? 11 : 10); doc.setTextColor(...INK);
+    doc.text(String(v), colX[ci], yy + 1.5, { maxWidth: W / 2 - M - 10 });
+  }));
+  if (wk.bank) { doc.setFontSize(8); doc.setTextColor(...MUTED); doc.text("Bank / IBAN: " + wk.bank, M, y + 50); y += 4; }
+
+  // Earnings / deductions
+  y += 56;
+  const half = (W - 2 * M - 6) / 2;
+  const drawCol = (x, title, rows, total, totalLabel) => {
+    doc.setFillColor(...ACC); doc.rect(x, y, half, 8, "F");
+    doc.setTextColor(255, 255, 255); doc.setFont(F, "bold"); doc.setFontSize(8.5);
+    doc.text(title.toUpperCase(), x + 4, y + 5.4);
+    doc.text(`AMOUNT (${cur})`, x + half - 4, y + 5.4, { align: "right" });
+    let yy = y + 8;
+    const shown = rows.filter(([, v]) => v > 0);
+    (shown.length ? shown : [["None", 0]]).forEach(([k, v], i) => {
+      if (i % 2) { doc.setFillColor(...SOFT); doc.rect(x, yy, half, 8, "F"); }
+      doc.setFont(F, "normal"); doc.setFontSize(9.5); doc.setTextColor(...INK);
+      doc.text(k, x + 4, yy + 5.4); doc.text(money(v), x + half - 4, yy + 5.4, { align: "right" });
+      yy += 8;
+    });
+    return { yy, total, totalLabel };
+  };
+  const a = drawCol(M, "Earnings", s.earnings, s.gross, "Total earnings");
+  const b = drawCol(M + half + 6, "Deductions", s.deductions, s.ded, "Total deductions");
+  const ty = Math.max(a.yy, b.yy) + 1;
+  [[M, a], [M + half + 6, b]].forEach(([x, c]) => {
+    doc.setDrawColor(...INK); doc.setLineWidth(0.4); doc.line(x, ty, x + half, ty);
+    doc.setFont(F, "bold"); doc.setFontSize(9.5); doc.setTextColor(...INK);
+    doc.text(c.totalLabel, x + 4, ty + 6); doc.text(money(c.total), x + half - 4, ty + 6, { align: "right" });
+  });
+
+  // Net pay
+  y = ty + 16;
+  doc.setDrawColor(...LINE); doc.setFillColor(...SOFT); doc.roundedRect(M, y, W - 2 * M, 26, 2, 2, "FD");
+  doc.setFillColor(...ACC); doc.rect(M, y, 2.5, 26, "F");
+  doc.setTextColor(...MUTED); doc.setFont(F, "bold"); doc.setFontSize(8);
+  doc.text("NET SALARY PAYABLE", M + 9, y + 9);
+  doc.setTextColor(...ACC); doc.setFont(F, "normal"); doc.setFontSize(8.5);
+  doc.text(inWordsFor(s), M + 9, y + 18, { maxWidth: 110 });
+  doc.setTextColor(...INK); doc.setFont(F, "bold"); doc.setFontSize(22);
+  doc.text(`${cur} ${money(s.net)}`, W - M - 7, y + 17, { align: "right" });
+
+  // Notes
+  y += 36;
+  if (s.notes) {
+    doc.setTextColor(...ACC); doc.setFont(F, "bold"); doc.setFontSize(8); doc.text("NOTES", M, y);
+    doc.setTextColor(...INK); doc.setFont(F, "normal"); doc.setFontSize(9.5);
+    const lines = doc.splitTextToSize(s.notes, W - 2 * M);
+    doc.text(lines, M, y + 6); y += 10 + lines.length * 4.5;
+  }
+
+  // Acknowledgement & signatures
+  y = Math.max(y + 6, 232);
+  doc.setFont(F, "italic"); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+  doc.text(`I, ${wk.name}, confirm that I have received the net salary stated above in full for ${monthLabel(s.month)}.`, M, y, { maxWidth: W - 2 * M });
+  const sy = y + 24, sw = 70;
+  doc.setDrawColor(...INK); doc.setLineWidth(0.3);
+  doc.line(M, sy, M + sw, sy); doc.line(W - M - sw, sy, W - M, sy);
+  doc.setFont(F, "bold"); doc.setFontSize(8.5); doc.setTextColor(...INK);
+  doc.text("Employer signature", M, sy + 5); doc.text("Employee signature", W - M - sw, sy + 5);
+  doc.setFont(F, "normal"); doc.setTextColor(...MUTED);
+  doc.text(emp.employer || "", M, sy + 10); doc.text(wk.name, W - M - sw, sy + 10);
+
+  // Footer
+  doc.setDrawColor(...LINE); doc.line(M, 283, W - M, 283);
+  doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+  doc.text("Confidential salary document", M, 288);
+  doc.text(s.no, W - M, 288, { align: "right" });
+
+  const safe = wk.name.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  if (action === "print") printDoc(doc);
+  else doc.save(`Payslip_${safe}_${s.month}.pdf`);
+}
+// Loads the PDF into a hidden frame and opens the browser's print dialog
+function printDoc(doc) {
+  const url = URL.createObjectURL(doc.output("blob"));
+  $("printFrame")?.remove();
+  const f = document.createElement("iframe");
+  f.id = "printFrame";
+  f.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0";
+  f.onload = () => setTimeout(() => {
+    try { f.contentWindow.focus(); f.contentWindow.print(); }
+    catch { window.open(url, "_blank"); }
+  }, 300);
+  f.src = url;
+  document.body.appendChild(f);
+}
+function inWordsFor(s) {
+  const saved = data.settings;
+  data.settings = { ...saved, ...{ curName: s.employer.curName, subName: s.employer.subName, currency: s.currency } };
+  const out = inWords(s.net); data.settings = saved; return out;
+}
+applyLang();
+</script>
+</body>
+</html>
