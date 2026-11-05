@@ -361,9 +361,6 @@ main.content { min-width: 0; }
 .mc-row .bar { grid-column: 2 / 4; height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; }
 .mc-row .bar i { display: block; height: 100%; width: 0; border-radius: 99px; transition: width 1.4s cubic-bezier(.22,.8,.24,1); }
 .mc-row small { grid-column: 2 / 4; color: var(--muted); font-size: 12px; margin-top: -2px; }
-@media (prefers-reduced-motion: reduce) {
-  .mc-pill, .odo-strip, .mc-pane.mc-slide, .mc-pane.mc-enter, .chart-box .col.grow, .mc-row, .mc-row .bar i, .mc-skeleton span { animation: none !important; transition: none !important; }
-}
 .section-title { display: flex; justify-content: space-between; align-items: center; margin: 4px 2px 12px; }
 .section-title h3 { font-size: 17px; }
 
@@ -1385,7 +1382,8 @@ $("recentRows").addEventListener("click", (e) => {
 /* ---------- Analysis card ---------- */
 let chartView = "month", chartAnimate = true, chartIntroDone = false, chartIntro = null;
 try { chartView = localStorage.getItem("householdPayroll.chartView") || "month"; } catch {}
-const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// The owner asked for the motion to always play, even when the system asks for reduced motion
+const reducedMotion = () => false;
 // Each digit is a vertical strip 0-9 that rolls to its value, one digit after another
 function countUp(el, to, prefix, startAtZero = false) {
   const text = `${prefix} ${money(to)}`, anim = chartAnimate && !reducedMotion();
