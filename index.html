@@ -1732,12 +1732,26 @@ function makePdf(s, action = "save") {
   doc.setTextColor(...INDIGO); doc.text(s.no, W - M, 289, { align: "right" });
 
   const safe = wk.name.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
-  if (action === "print") printDoc(doc);
+  if (action === "print") printDoc(doc, `Payslip_${safe}_${s.month}.pdf`);
   else doc.save(`Payslip_${safe}_${s.month}.pdf`);
 }
 // Loads the PDF into a hidden frame and opens the browser's print dialog
-function printDoc(doc) {
-  const url = URL.createObjectURL(doc.output("blob"));
+// Phones and tablets can't print a PDF from a hidden frame (iPhone prints the web page instead,
+// on two Letter pages). There we open the one-page PDF itself; its Share button has Print.
+const isTouchDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function printDoc(doc, name = "Payslip.pdf") {
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  if (isTouchDevice) {
+    const file = new File([blob], name, { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      // If sharing isn't allowed here (e.g. after saving took a moment), fall back to opening the PDF
+      navigator.share({ files: [file], title: name }).catch((e) => { if (e.name !== "AbortError") doc.save(name); });
+    } else if (!window.open(url, "_blank")) {
+      doc.save(name);
+    }
+    return;
+  }
   $("printFrame")?.remove();
   const f = document.createElement("iframe");
   f.id = "printFrame";
