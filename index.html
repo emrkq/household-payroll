@@ -329,26 +329,35 @@ main.content { min-width: 0; }
 .mc-tabs { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--soft); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
 .mc-tabs button { position: relative; z-index: 1; border: 0; background: transparent; padding: 8px 6px; border-radius: 9px; font-weight: 600; font-size: 13.5px; color: var(--muted); cursor: pointer; transition: color .25s ease; }
 .mc-tabs button[aria-selected="true"] { color: var(--ink); }
-.mc-pill { position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; border-radius: 9px; background: var(--surface); box-shadow: 0 1px 3px rgba(16,24,40,.14); transition: transform .38s cubic-bezier(.2,.8,.2,1), width .38s cubic-bezier(.2,.8,.2,1); }
+.mc-pill { position: absolute; top: 4px; bottom: 4px; left: 4px; right: 66%; border-radius: 9px; background: var(--surface); box-shadow: 0 1px 3px rgba(16,24,40,.14); }
 .mc-body { position: relative; min-height: 260px; }
-.mc-pane.mc-enter { animation: mcIn .45s cubic-bezier(.2,.8,.2,1) both; }
-@keyframes mcIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.chart-box .col.grow { transform-box: fill-box; transform-origin: 50% 100%; animation: mcGrow .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 45ms); }
+.mc-pane.mc-enter { animation: mcIn .8s cubic-bezier(.22,.8,.24,1) both; }
+@keyframes mcIn { from { opacity: 0; transform: translateY(12px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+/* Tab change: the new view slides in from the side of the tab you moved to, sharpening from a blur */
+.mc-pane.mc-slide { animation: mcSlide .75s cubic-bezier(.22,.8,.24,1) both; }
+@keyframes mcSlide { from { opacity: 0; transform: translateX(var(--dx, 24px)); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+/* Rolling digits for the big total */
+.mc-count b { line-height: 1.1; white-space: nowrap; }
+.odo, .odo-c { display: inline-block; height: 1.1em; line-height: 1.1em; vertical-align: bottom; }
+.odo { overflow: hidden; }
+.odo-strip { display: block; transition: transform 1.5s cubic-bezier(.22,.8,.24,1); }
+.odo-strip span { display: block; height: 1.1em; text-align: center; }
+.chart-box .col.grow { transform-box: fill-box; transform-origin: 50% 100%; animation: mcGrow 1.3s cubic-bezier(.22,.8,.24,1) both; animation-delay: calc(var(--i) * 90ms); }
 @keyframes mcGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .mc-skeleton { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: end; gap: 10px; height: 250px; padding: 10px 6px 26px 44px; }
-.mc-skeleton span { display: block; border-radius: 7px 7px 3px 3px; background: linear-gradient(90deg, var(--soft) 0%, color-mix(in srgb, var(--line) 75%, var(--surface)) 50%, var(--soft) 100%); background-size: 200% 100%; animation: mcShimmer 1.1s linear infinite; }
+.mc-skeleton span { display: block; border-radius: 7px 7px 3px 3px; background: linear-gradient(90deg, var(--soft) 0%, color-mix(in srgb, var(--line) 75%, var(--surface)) 50%, var(--soft) 100%); background-size: 200% 100%; animation: mcShimmer 1.6s linear infinite; }
 @keyframes mcShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .mc-rows { display: grid; gap: 14px; padding: 4px 2px; }
-.mc-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; animation: mcIn .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 70ms); }
+.mc-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; animation: mcIn .8s cubic-bezier(.22,.8,.24,1) both; animation-delay: calc(var(--i) * 120ms); }
 .mc-row .av { grid-row: span 2; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-weight: 700; font-size: 12px; }
 .mc-row .av svg { width: 18px; height: 18px; }
 .mc-row .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mc-row .am { font-weight: 700; font-variant-numeric: tabular-nums; }
 .mc-row .bar { grid-column: 2 / 4; height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; }
-.mc-row .bar i { display: block; height: 100%; width: 0; border-radius: 99px; transition: width .9s cubic-bezier(.2,.8,.2,1); }
+.mc-row .bar i { display: block; height: 100%; width: 0; border-radius: 99px; transition: width 1.4s cubic-bezier(.22,.8,.24,1); }
 .mc-row small { grid-column: 2 / 4; color: var(--muted); font-size: 12px; margin-top: -2px; }
 @media (prefers-reduced-motion: reduce) {
-  .mc-pill, .mc-pane.mc-enter, .chart-box .col.grow, .mc-row, .mc-row .bar i, .mc-skeleton span { animation: none !important; transition: none !important; }
+  .mc-pill, .odo-strip, .mc-pane.mc-slide, .mc-pane.mc-enter, .chart-box .col.grow, .mc-row, .mc-row .bar i, .mc-skeleton span { animation: none !important; transition: none !important; }
 }
 .section-title { display: flex; justify-content: space-between; align-items: center; margin: 4px 2px 12px; }
 .section-title h3 { font-size: 17px; }
@@ -1372,31 +1381,48 @@ $("recentRows").addEventListener("click", (e) => {
 let chartView = "month", chartAnimate = true, chartIntroDone = false, chartIntro = null;
 try { chartView = localStorage.getItem("householdPayroll.chartView") || "month"; } catch {}
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-function countUp(el, to, prefix) {
-  const fmt = (v) => `${prefix} ${money(v)}`;
-  if (!chartAnimate || reducedMotion()) { el.textContent = fmt(to); el.dataset.value = to; return; }
-  const from = Number(el.dataset.value || 0), start = performance.now(), dur = 800;
-  const step = (now) => {
-    const k = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - k, 3);
-    el.textContent = fmt(from + (to - from) * e);
-    if (k < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-  el.dataset.value = to;
+// Each digit is a vertical strip 0-9 that rolls to its value, one digit after another
+function countUp(el, to, prefix, startAtZero = false) {
+  const text = `${prefix} ${money(to)}`, anim = chartAnimate && !reducedMotion();
+  if (el.dataset.text?.length !== text.length || !el.querySelector(".odo")) {
+    el.innerHTML = [...text].map(c => /\d/.test(c)
+      ? `<span class="odo" aria-hidden="true"><span class="odo-strip">${[..."0123456789"].map(n => `<span>${n}</span>`).join("")}</span></span>`
+      : `<span class="odo-c" aria-hidden="true">${c === " " ? "&nbsp;" : esc(c)}</span>`).join("");
+  }
+  el.dataset.text = text;
+  el.setAttribute("aria-label", text);
+  const strips = [...el.querySelectorAll(".odo-strip")], digits = text.replace(/\D/g, "");
+  const set = (zero, moving) => strips.forEach((st, i) => {
+    st.style.transitionDuration = moving ? "" : "0s";
+    st.style.transitionDelay = moving ? `${i * 70}ms` : "0ms";
+    st.style.transform = `translateY(-${zero ? 0 : Number(digits[i]) * 10}%)`;
+  });
+  if (startAtZero) { set(true, false); return; }
+  if (!anim) { set(false, false); return; }
+  requestAnimationFrame(() => requestAnimationFrame(() => set(false, true)));
 }
 function movePill() {
   const tabs = $("chartTabs"), on = tabs.querySelector(`[data-chart-view="${chartView}"]`), pill = tabs.querySelector(".mc-pill");
   if (!on || !on.offsetWidth) return;
-  pill.style.width = on.offsetWidth + "px";
-  pill.style.transform = `translateX(${on.offsetLeft}px)`;
+  // The leading edge moves first and the trailing edge follows, so the pill stretches like in the video
+  const left = on.offsetLeft, right = tabs.clientWidth - left - on.offsetWidth;
+  const prev = parseFloat(pill.style.left);
+  const toRight = !isNaN(prev) && left > prev;
+  pill.style.transition = isNaN(prev) || reducedMotion() ? "none"
+    : toRight ? "right .45s cubic-bezier(.22,.8,.24,1), left .7s cubic-bezier(.22,.8,.24,1) .08s" : "left .45s cubic-bezier(.22,.8,.24,1), right .7s cubic-bezier(.22,.8,.24,1) .08s";
+  pill.style.left = left + "px";
+  pill.style.right = right + "px";
 }
-function showChartView(animate) {
+function showChartView(animate, dx) {
   document.querySelectorAll("[data-chart-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.chartView === chartView));
   document.querySelectorAll("[data-chart-pane]").forEach(pane => {
     const on = pane.dataset.chartPane === chartView;
     pane.hidden = !on;
-    pane.classList.remove("mc-enter");
-    if (on && animate) { void pane.offsetWidth; pane.classList.add("mc-enter"); }
+    pane.classList.remove("mc-enter", "mc-slide");
+    if (on && animate) {
+      if (dx) pane.style.setProperty("--dx", dx + "px");
+      void pane.offsetWidth; pane.classList.add(dx ? "mc-slide" : "mc-enter");
+    }
   });
   movePill();
   // Bars fill once their pane is visible
@@ -1412,7 +1438,7 @@ function renderChartCard(year, slips, series, perWorker, yearTotal, cur) {
   $("chartCur").textContent = t("Total");
   $("chartSub").textContent = `${year} · ${t("{n} payslips", { n: slips.length })}`;
   const intro = !chartIntroDone && !reducedMotion();
-  if (intro) $("chartBig").textContent = `${cur} ${money(0)}`;
+  if (intro) countUp($("chartBig"), yearTotal, cur, true);
   else countUp($("chartBig"), yearTotal, cur);
 
   drawMonthChart(year, slips, series, cur);
@@ -1449,7 +1475,7 @@ function renderChartCard(year, slips, series, perWorker, yearTotal, cur) {
       drawMonthChart(year, slips, series, cur);
       showChartView(true);
       countUp($("chartBig"), yearTotal, cur);
-    }, 600);
+    }, 900);
   } else {
     $("chartSkel").hidden = true;
     showChartView(chartAnimate);
@@ -1463,11 +1489,13 @@ new IntersectionObserver((entries, obs) => {
 }, { threshold: 0.35 }).observe($("chartCard"));
 document.querySelectorAll("[data-chart-view]").forEach(b => b.addEventListener("click", () => {
   if (chartView === b.dataset.chartView) return;
+  const order = ["month", "worker", "item"], step = order.indexOf(b.dataset.chartView) > order.indexOf(chartView) ? 1 : -1;
+  const dx = step * (document.documentElement.dir === "rtl" ? -28 : 28);
   chartView = b.dataset.chartView;
   try { localStorage.setItem("householdPayroll.chartView", chartView); } catch {}
   document.querySelectorAll(`[data-chart-pane="${chartView}"] .bar i`).forEach(i => i.style.width = "0");
   if (chartView === "month") document.querySelectorAll("#monthChart .col").forEach(el => { el.classList.remove("grow"); void el.getBoundingClientRect(); el.classList.add("grow"); });
-  showChartView(true);
+  showChartView(true, dx);
 }));
 function drawMonthChart(year, slips, series, cur, boxId = "monthChart", colorOf = workerColor) {
   const box = $(boxId);
