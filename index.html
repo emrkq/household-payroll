@@ -1494,18 +1494,17 @@ function makePdf(s, action = "save") {
     F = "Roboto";
   }
   const W = 210, M = 16, cur = s.currency, emp = s.employer, wk = s.worker;
-  // Same palette as the app: indigo accent, navy mark, lavender net box
-  const INDIGO = [66, 83, 192], NAVY = [30, 42, 74], INK = [17, 24, 39], MUTED = [107, 114, 128],
-    LINE = [230, 232, 238], SOFT = [246, 247, 250], LAV = [241, 242, 255], LAVLINE = [222, 221, 247];
+  // Printer-friendly: black, greys and white only, with almost no filled areas
+  const INDIGO = [55, 55, 60], NAVY = [17, 17, 20], INK = [17, 17, 20], MUTED = [100, 100, 106],
+    LINE = [205, 205, 210], SOFT = [248, 248, 248], LAV = [255, 255, 255], LAVLINE = [120, 120, 126];
   const label = (text, x, y) => { doc.setFont(F, "bold"); doc.setFontSize(7.5); doc.setTextColor(...INDIGO); doc.text(text, x, y); };
   const card = (x, y, w, h, fill = [255, 255, 255], stroke = LINE) => {
     doc.setDrawColor(...stroke); doc.setLineWidth(0.3); doc.setFillColor(...fill); doc.roundedRect(x, y, w, h, 3, 3, "FD");
   };
 
   // Top accent bar and header
-  doc.setFillColor(...INDIGO); doc.rect(0, 0, W, 2.5, "F");
-  doc.setFillColor(...NAVY); doc.roundedRect(M, 13, 13, 13, 3, 3, "F");
-  doc.setTextColor(255, 255, 255); doc.setFont(F, "bold"); doc.setFontSize(12);
+  doc.setDrawColor(...INK); doc.setLineWidth(0.5); doc.roundedRect(M, 13, 13, 13, 3, 3, "S");
+  doc.setTextColor(...INK); doc.setFont(F, "bold"); doc.setFontSize(12);
   doc.text("H", M + 6.5, 21.6, { align: "center" });
   doc.setTextColor(...INK); doc.setFontSize(16);
   doc.text(emp.employer || "Household Payroll", M + 17, 19);
@@ -1515,7 +1514,7 @@ function makePdf(s, action = "save") {
   const tag = "SALARY SLIP";
   doc.setFont(F, "bold"); doc.setFontSize(7.5);
   const tw = doc.getTextWidth(tag) + 8;
-  doc.setFillColor(...LAV); doc.roundedRect(W - M - tw, 11, tw, 6.5, 3.2, 3.2, "F");
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.roundedRect(W - M - tw, 11, tw, 6.5, 3.2, 3.2, "S");
   doc.setTextColor(...INDIGO); doc.text(tag, W - M - tw / 2, 15.3, { align: "center" });
   doc.setTextColor(...INK); doc.setFontSize(15); doc.text(monthLabel(s.month), W - M, 25, { align: "right" });
   doc.setFont(F, "normal"); doc.setFontSize(8); doc.setTextColor(...MUTED);
@@ -1561,12 +1560,12 @@ function makePdf(s, action = "save") {
       doc.setDrawColor(...LINE); doc.line(x + 6, yy + 2.6, x + half - 6, yy + 2.6);
       yy += 7;
     });
-    doc.setFillColor(...SOFT); doc.roundedRect(x + 0.3, y + tableH - 10, half - 0.6, 9.7, 2.6, 2.6, "F");
+    doc.setDrawColor(...INK); doc.setLineWidth(0.4); doc.line(x + 6, y + tableH - 9.5, x + half - 6, y + tableH - 9.5); doc.setLineWidth(0.3);
     doc.setFont(F, "bold"); doc.setFontSize(9.2); doc.setTextColor(...INK);
     doc.text(totalLabel, x + 6, y + tableH - 3.8); doc.text(money(total), x + half - 6, y + tableH - 3.8, { align: "right" });
   };
-  drawTable(M, "EARNINGS", er, s.gross, "Total earnings", [31, 160, 107]);
-  drawTable(M + half + 6, "DEDUCTIONS", dr, s.ded, "Total deductions", [217, 71, 59]);
+  drawTable(M, "EARNINGS", er, s.gross, "Total earnings", INK);
+  drawTable(M + half + 6, "DEDUCTIONS", dr, s.ded, "Total deductions", INK);
 
   // Net pay
   y += tableH + 7;
@@ -1583,7 +1582,7 @@ function makePdf(s, action = "save") {
     doc.setFont(F, "normal"); doc.setFontSize(9);
     const lines = doc.splitTextToSize(s.notes, W - 2 * M - 12).slice(0, 5);
     const h = 11 + lines.length * 4.4;
-    card(M, y, W - 2 * M, h, SOFT, LINE);
+    card(M, y, W - 2 * M, h);
     label("NOTES", M + 6, y + 7);
     doc.setFont(F, "normal"); doc.setFontSize(9); doc.setTextColor(...INK);
     doc.text(lines, M + 6, y + 12.5);
