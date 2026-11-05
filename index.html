@@ -1493,111 +1493,120 @@ function makePdf(s, action = "save") {
     for (const [style, data64] of Object.entries(pdfFonts)) { doc.addFileToVFS(`Roboto-${style}.ttf`, data64); doc.addFont(`Roboto-${style}.ttf`, "Roboto", style); }
     F = "Roboto";
   }
-  const W = 210, M = 16, cur = s.currency, emp = s.employer;
-  const INK = [34, 34, 38], ACC = [85, 85, 90], BRASS = [150, 150, 155], MUTED = [110, 110, 115], LINE = [215, 215, 218], SOFT = [244, 244, 245];
+  const W = 210, M = 16, cur = s.currency, emp = s.employer, wk = s.worker;
+  // Same palette as the app: indigo accent, navy mark, lavender net box
+  const INDIGO = [66, 83, 192], NAVY = [30, 42, 74], INK = [17, 24, 39], MUTED = [107, 114, 128],
+    LINE = [230, 232, 238], SOFT = [246, 247, 250], LAV = [241, 242, 255], LAVLINE = [222, 221, 247];
+  const label = (text, x, y) => { doc.setFont(F, "bold"); doc.setFontSize(7.5); doc.setTextColor(...INDIGO); doc.text(text, x, y); };
+  const card = (x, y, w, h, fill = [255, 255, 255], stroke = LINE) => {
+    doc.setDrawColor(...stroke); doc.setLineWidth(0.3); doc.setFillColor(...fill); doc.roundedRect(x, y, w, h, 3, 3, "FD");
+  };
 
-  // Header band
-  doc.setFillColor(...SOFT); doc.rect(0, 0, W, 42, "F");
-  doc.setFillColor(...BRASS); doc.rect(0, 42, W, 0.8, "F");
-  doc.setTextColor(...INK);
-  doc.setFont(F, "bold"); doc.setFontSize(20);
-  doc.text(emp.employer || "Household Payroll", M, 18);
-  doc.setFont(F, "normal"); doc.setFontSize(9); doc.setTextColor(...MUTED);
-  const contact = [emp.address, emp.phone ? "Tel: " + emp.phone : ""].filter(Boolean);
-  contact.forEach((t, i) => doc.text(t, M, 25 + i * 5));
-  doc.setTextColor(...MUTED);
-  doc.setFont(F, "bold"); doc.setFontSize(8.5);
-  doc.text("S A L A R Y   S L I P", W - M, 15, { align: "right" });
-  doc.setTextColor(...INK); doc.setFont(F, "bold"); doc.setFontSize(17);
-  doc.text(monthLabel(s.month), W - M, 24, { align: "right" });
+  // Top accent bar and header
+  doc.setFillColor(...INDIGO); doc.rect(0, 0, W, 2.5, "F");
+  doc.setFillColor(...NAVY); doc.roundedRect(M, 13, 13, 13, 3, 3, "F");
+  doc.setTextColor(255, 255, 255); doc.setFont(F, "bold"); doc.setFontSize(12);
+  doc.text("H", M + 6.5, 21.6, { align: "center" });
+  doc.setTextColor(...INK); doc.setFontSize(16);
+  doc.text(emp.employer || "Household Payroll", M + 17, 19);
   doc.setFont(F, "normal"); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
-  doc.text(`Slip No. ${s.no}   ·   Issued ${dateLabel(s.created.slice(0, 10))}`, W - M, 31, { align: "right" });
+  doc.text([emp.address, emp.phone ? "Tel: " + emp.phone : ""].filter(Boolean).join("   ·   "), M + 17, 24.5, { maxWidth: 100 });
 
-  // Employee details
-  let y = 54;
-  doc.setTextColor(...ACC); doc.setFont(F, "bold"); doc.setFontSize(8);
-  doc.text("EMPLOYEE DETAILS", M, y);
-  y += 3;
-  doc.setDrawColor(...LINE); doc.setFillColor(...SOFT); doc.roundedRect(M, y, W - 2 * M, 44, 2, 2, "FD");
-  const wk = s.worker;
+  const tag = "SALARY SLIP";
+  doc.setFont(F, "bold"); doc.setFontSize(7.5);
+  const tw = doc.getTextWidth(tag) + 8;
+  doc.setFillColor(...LAV); doc.roundedRect(W - M - tw, 11, tw, 6.5, 3.2, 3.2, "F");
+  doc.setTextColor(...INDIGO); doc.text(tag, W - M - tw / 2, 15.3, { align: "center" });
+  doc.setTextColor(...INK); doc.setFontSize(15); doc.text(monthLabel(s.month), W - M, 25, { align: "right" });
+  doc.setFont(F, "normal"); doc.setFontSize(8); doc.setTextColor(...MUTED);
+  doc.text(`Slip No. ${s.no}  ·  Issued ${dateLabel(s.created.slice(0, 10))}`, W - M, 30.5, { align: "right" });
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, 37, W - M, 37);
+
+  // Employee details card
+  let y = 43;
+  const detailsH = wk.bank ? 53 : 47;
+  card(M, y, W - 2 * M, detailsH);
+  label("EMPLOYEE DETAILS", M + 6, y + 7);
   const left = [["Employee name", wk.name], ["ID Card No.", wk.idNo], ["Nationality", wk.nat || "-"], ["Job title", wk.job || "Domestic Worker"]];
   const right = [["Passport No.", wk.passport || "-"], ["Joining date", dateLabel(wk.join)], ["Working days", String(s.days || "-")],
     ["Payment", `${s.method} · ${dateLabel(s.payDate)}`]];
-  const colX = [M + 6, W / 2 + 4];
   [left, right].forEach((col, ci) => col.forEach(([k, v], i) => {
-    const yy = y + 9 + i * 9.5;
-    doc.setFont(F, "normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-    doc.text(k.toUpperCase(), colX[ci], yy - 3.2);
-    doc.setFont(F, ci === 0 && i < 2 ? "bold" : "normal");
-    doc.setFontSize(ci === 0 && i === 0 ? 11 : 10); doc.setTextColor(...INK);
-    doc.text(String(v), colX[ci], yy + 1.5, { maxWidth: W / 2 - M - 10 });
+    const x = ci ? W / 2 + 4 : M + 6, yy = y + 14 + i * 8;
+    doc.setFont(F, "normal"); doc.setFontSize(7); doc.setTextColor(...MUTED);
+    doc.text(k.toUpperCase(), x, yy);
+    doc.setFont(F, ci === 0 && i < 2 ? "bold" : "normal"); doc.setFontSize(ci === 0 && i === 0 ? 10.5 : 9.5); doc.setTextColor(...INK);
+    doc.text(String(v), x, yy + 4, { maxWidth: W / 2 - M - 10 });
   }));
-  if (wk.bank) { doc.setFontSize(8); doc.setTextColor(...MUTED); doc.text("Bank / IBAN: " + wk.bank, M, y + 50); y += 4; }
-
-  // Earnings / deductions
-  y += 56;
-  const half = (W - 2 * M - 6) / 2;
-  const drawCol = (x, title, rows, total, totalLabel) => {
-    doc.setFillColor(...ACC); doc.rect(x, y, half, 8, "F");
-    doc.setTextColor(255, 255, 255); doc.setFont(F, "bold"); doc.setFontSize(8.5);
-    doc.text(title.toUpperCase(), x + 4, y + 5.4);
-    doc.text(`AMOUNT (${cur})`, x + half - 4, y + 5.4, { align: "right" });
-    let yy = y + 8;
-    const shown = rows.filter(([, v]) => v > 0);
-    (shown.length ? shown : [["None", 0]]).forEach(([k, v], i) => {
-      if (i % 2) { doc.setFillColor(...SOFT); doc.rect(x, yy, half, 8, "F"); }
-      doc.setFont(F, "normal"); doc.setFontSize(9.5); doc.setTextColor(...INK);
-      doc.text(k, x + 4, yy + 5.4); doc.text(money(v), x + half - 4, yy + 5.4, { align: "right" });
-      yy += 8;
-    });
-    return { yy, total, totalLabel };
-  };
-  const a = drawCol(M, "Earnings", s.earnings, s.gross, "Total earnings");
-  const b = drawCol(M + half + 6, "Deductions", s.deductions, s.ded, "Total deductions");
-  const ty = Math.max(a.yy, b.yy) + 1;
-  [[M, a], [M + half + 6, b]].forEach(([x, c]) => {
-    doc.setDrawColor(...INK); doc.setLineWidth(0.4); doc.line(x, ty, x + half, ty);
-    doc.setFont(F, "bold"); doc.setFontSize(9.5); doc.setTextColor(...INK);
-    doc.text(c.totalLabel, x + 4, ty + 6); doc.text(money(c.total), x + half - 4, ty + 6, { align: "right" });
-  });
-
-  // Net pay
-  y = ty + 16;
-  doc.setDrawColor(...LINE); doc.setFillColor(...SOFT); doc.roundedRect(M, y, W - 2 * M, 26, 2, 2, "FD");
-  doc.setFillColor(...ACC); doc.rect(M, y, 2.5, 26, "F");
-  doc.setTextColor(...MUTED); doc.setFont(F, "bold"); doc.setFontSize(8);
-  doc.text("NET SALARY PAYABLE", M + 9, y + 9);
-  doc.setTextColor(...ACC); doc.setFont(F, "normal"); doc.setFontSize(8.5);
-  doc.text(inWordsFor(s), M + 9, y + 18, { maxWidth: 110 });
-  doc.setTextColor(...INK); doc.setFont(F, "bold"); doc.setFontSize(22);
-  doc.text(`${cur} ${money(s.net)}`, W - M - 7, y + 17, { align: "right" });
-
-  // Notes
-  y += 36;
-  if (s.notes) {
-    doc.setTextColor(...ACC); doc.setFont(F, "bold"); doc.setFontSize(8); doc.text("NOTES", M, y);
-    doc.setTextColor(...INK); doc.setFont(F, "normal"); doc.setFontSize(9.5);
-    const lines = doc.splitTextToSize(s.notes, W - 2 * M);
-    doc.text(lines, M, y + 6); y += 10 + lines.length * 4.5;
+  if (wk.bank) {
+    doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text("Bank / IBAN: " + wk.bank, M + 6, y + detailsH - 4);
   }
 
-  // Acknowledgement & signatures
-  y = Math.max(y + 6, 232);
-  doc.setFont(F, "italic"); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+  // Earnings and deductions cards
+  y += detailsH + 7;
+  const half = (W - 2 * M - 6) / 2;
+  const rowsOf = (rows) => { const shown = rows.filter(([, v]) => v > 0); return shown.length ? shown : [["None", 0]]; };
+  const er = rowsOf(s.earnings), dr = rowsOf(s.deductions);
+  const tableH = 16 + Math.max(er.length, dr.length) * 7 + 11;
+  const drawTable = (x, title, rows, total, totalLabel, dot) => {
+    card(x, y, half, tableH);
+    doc.setFillColor(...dot); doc.circle(x + 7, y + 7.2, 1.3, "F");
+    label(title, x + 10.5, y + 8);
+    doc.setFont(F, "normal"); doc.setFontSize(7); doc.setTextColor(...MUTED);
+    doc.text(`AMOUNT (${cur})`, x + half - 6, y + 8, { align: "right" });
+    let yy = y + 16;
+    rows.forEach(([k, v]) => {
+      doc.setFont(F, "normal"); doc.setFontSize(9.2); doc.setTextColor(...INK);
+      doc.text(k, x + 6, yy); doc.text(money(v), x + half - 6, yy, { align: "right" });
+      doc.setDrawColor(...LINE); doc.line(x + 6, yy + 2.6, x + half - 6, yy + 2.6);
+      yy += 7;
+    });
+    doc.setFillColor(...SOFT); doc.roundedRect(x + 0.3, y + tableH - 10, half - 0.6, 9.7, 2.6, 2.6, "F");
+    doc.setFont(F, "bold"); doc.setFontSize(9.2); doc.setTextColor(...INK);
+    doc.text(totalLabel, x + 6, y + tableH - 3.8); doc.text(money(total), x + half - 6, y + tableH - 3.8, { align: "right" });
+  };
+  drawTable(M, "EARNINGS", er, s.gross, "Total earnings", [31, 160, 107]);
+  drawTable(M + half + 6, "DEDUCTIONS", dr, s.ded, "Total deductions", [217, 71, 59]);
+
+  // Net pay
+  y += tableH + 7;
+  card(M, y, W - 2 * M, 26, LAV, LAVLINE);
+  label("NET SALARY PAYABLE", M + 7, y + 9);
+  doc.setFont(F, "normal"); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+  doc.text(inWordsFor(s), M + 7, y + 17, { maxWidth: 105 });
+  doc.setFont(F, "bold"); doc.setFontSize(21); doc.setTextColor(...NAVY);
+  doc.text(`${cur} ${money(s.net)}`, W - M - 7, y + 16.5, { align: "right" });
+
+  // Notes, kept short enough to stay on one page
+  y += 33;
+  if (s.notes) {
+    doc.setFont(F, "normal"); doc.setFontSize(9);
+    const lines = doc.splitTextToSize(s.notes, W - 2 * M - 12).slice(0, 5);
+    const h = 11 + lines.length * 4.4;
+    card(M, y, W - 2 * M, h, SOFT, LINE);
+    label("NOTES", M + 6, y + 7);
+    doc.setFont(F, "normal"); doc.setFontSize(9); doc.setTextColor(...INK);
+    doc.text(lines, M + 6, y + 12.5);
+    y += h + 6;
+  }
+
+  // Acknowledgement and signatures
+  y = Math.min(Math.max(y + 4, 236), 248);
+  doc.setFont(F, "italic"); doc.setFontSize(8.3); doc.setTextColor(...MUTED);
   doc.text(`I, ${wk.name}, confirm that I have received the net salary stated above in full for ${monthLabel(s.month)}.`, M, y, { maxWidth: W - 2 * M });
-  const sy = y + 24, sw = 70;
+  const sy = y + 20, sw = 70;
   doc.setDrawColor(...INK); doc.setLineWidth(0.3);
   doc.line(M, sy, M + sw, sy); doc.line(W - M - sw, sy, W - M, sy);
-  doc.setFont(F, "bold"); doc.setFontSize(8.5); doc.setTextColor(...INK);
+  doc.setFont(F, "bold"); doc.setFontSize(8.3); doc.setTextColor(...INK);
   doc.text("Employer signature", M, sy + 5); doc.text("Employee signature", W - M - sw, sy + 5);
   doc.setFont(F, "normal"); doc.setTextColor(...MUTED);
-  doc.text(emp.employer || "", M, sy + 10); doc.text(wk.name, W - M - sw, sy + 10);
+  doc.text(emp.employer || "", M, sy + 9.5); doc.text(wk.name, W - M - sw, sy + 9.5);
 
   // Footer
-  doc.setDrawColor(...LINE); doc.line(M, 283, W - M, 283);
-  doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-  doc.text("Confidential salary document", M, 288);
-  doc.text(s.no, W - M, 288, { align: "right" });
+  doc.setDrawColor(...LINE); doc.line(M, 284, W - M, 284);
+  doc.setFontSize(7.3); doc.setTextColor(...MUTED);
+  doc.text("Confidential salary document", M, 289);
+  doc.setTextColor(...INDIGO); doc.text(s.no, W - M, 289, { align: "right" });
 
   const safe = wk.name.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
   if (action === "print") printDoc(doc);
