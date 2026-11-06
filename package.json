@@ -1,5 +1,5 @@
 {
-  "name": "household-payroll",
+  "name": "worker-payroll",
   "version": "1.0.0",
   "private": true,
   "main": "server.js",

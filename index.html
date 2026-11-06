@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Household Payroll</title>
+<title>Worker Payroll</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&family=Roboto+Mono:wght@500&family=Noto+Sans+Arabic:wght@400;500;700&display=swap">
 <script src="/jspdf.umd.min.js"></script>
@@ -451,7 +451,7 @@ main.content { min-width: 0; }
   <form class="lock-card" id="lockForm" autocomplete="off">
     <div class="row" style="justify-content:space-between"><div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><circle cx="12" cy="14" r="2.5"/></svg></div>
       <div class="lock-tools"><button class="btn sm" type="button" data-theme-toggle></button><button class="btn sm" type="button" data-lang-toggle></button></div></div>
-    <h1 id="lockTitle">Household Payroll</h1>
+    <h1 id="lockTitle">Worker Payroll</h1>
     <p id="lockMsg">Enter your password to open payroll records.</p>
     <label id="lockUserWrap"><span id="lockUserLabel">Username or ID card no.</span> <input id="lockUser" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
     <label>Password <input type="password" id="lockPw" required></label>
@@ -467,7 +467,7 @@ main.content { min-width: 0; }
   <aside class="sidebar">
     <div class="brand">
       <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><circle cx="12" cy="14" r="2.5"/></svg></div>
-      <div><b id="brandName">Household Payroll</b><small>Domestic staff</small></div>
+      <div><b id="brandName">Worker Payroll</b><small>Domestic staff</small></div>
     </div>
     <nav class="side-nav" aria-label="Main">
       <span class="nav-label">Payroll</span>
@@ -496,7 +496,7 @@ main.content { min-width: 0; }
   </aside>
 
   <header class="mtop">
-    <div class="brand"><div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><circle cx="12" cy="14" r="2.5"/></svg></div><div><small>Hello,</small><b id="brandName2">Household Payroll</b></div></div>
+    <div class="brand"><div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><circle cx="12" cy="14" r="2.5"/></svg></div><div><small>Hello,</small><b id="brandName2">Worker Payroll</b></div></div>
     <div class="tools"><button class="icon-btn" data-theme-toggle></button><button class="icon-btn" data-lang-toggle></button><button class="icon-btn" id="lockNow2" aria-label="Sign out"></button></div>
   </header>
   <nav class="mbar" aria-label="Main">
@@ -751,7 +751,7 @@ main.content { min-width: 0; }
     <div class="wrap">
       <div class="brand">
         <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/><circle cx="12" cy="14" r="2.5"/></svg></div>
-        <div><small>My payslips</small><h1 id="portalEmployer">Household Payroll</h1></div>
+        <div><small>My payslips</small><h1 id="portalEmployer">Worker Payroll</h1></div>
       </div>
       <nav class="tabs">
         <button data-theme-toggle></button>
@@ -836,11 +836,11 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 
 /* ---------- Language (UI only; the PDF stays English) ---------- */
 const AR = {
-  "Household Payroll": "رواتب العمالة المنزلية",
+  "Worker Payroll": "رواتب العمّال",
   "Enter your password to open payroll records.": "أدخل كلمة السر لفتح سجلات الرواتب.",
   "Password": "كلمة السر", "Confirm password": "تأكيد كلمة السر", "Sign in": "تسجيل الدخول",
   "Records are stored on your home server. Anyone with this password can see salaries and ID numbers.": "السجلات محفوظة على سيرفر البيت. أي شخص يعرف كلمة السر يقدر يشوف الرواتب وأرقام البطاقات.",
-  "Set up Household Payroll": "إعداد رواتب العمالة المنزلية",
+  "Set up Worker Payroll": "إعداد رواتب العمّال",
   "Choose a password. You will need it every time you open the app.": "اختر كلمة سر، بتحتاجها كل مرة تفتح الموقع.",
   "Create password": "إنشاء كلمة السر",
   "Domestic staff": "العمالة المنزلية", "Payslip": "قسيمة الراتب", "Workers": "العمّال", "History": "السجل", "Settings": "الإعدادات", "Sign out": "تسجيل الخروج",
@@ -876,7 +876,7 @@ const AR = {
   "Print": "طباعة", "Download PDF": "تنزيل PDF", "Remove": "حذف",
   "No payslips yet. They appear here after you download one.": "ما فيه قسائم. تطلع هنا بعد ما تحفظ أول قسيمة.",
   "Payslip removed": "تم حذف القسيمة", "Settings saved": "تم حفظ الإعدادات", "Backup restored": "تم استرجاع النسخة الاحتياطية",
-  "This file is not a Household Payroll backup.": "هذا الملف مو نسخة احتياطية من الموقع.",
+  "This file is not a Worker Payroll backup.": "هذا الملف مو نسخة احتياطية من الموقع.",
   "The two passwords do not match.": "كلمتا السر مو متطابقتين.", "Password changed": "تم تغيير كلمة السر",
   "Use at least 4 characters.": "استخدم ٤ أحرف على الأقل.", "Wrong password. Try again.": "كلمة السر غلط، حاول مرة ثانية.",
   "Too many attempts. Wait a minute and try again.": "محاولات كثيرة، انتظر دقيقة وحاول مرة ثانية.",
@@ -1108,7 +1108,7 @@ let isNew = false;
 })();
 function renderLockText() {
   $("lockUserLabel").textContent = t(isNew ? "Username" : "Username or ID card no.");
-  $("lockTitle").textContent = t(isNew ? "Set up Household Payroll" : "Household Payroll");
+  $("lockTitle").textContent = t(isNew ? "Set up Worker Payroll" : "Worker Payroll");
   $("lockMsg").textContent = t(isNew ? "Choose a username and password. You will need them every time you open the app."
     : "Employers sign in with their username. Workers sign in with their ID card number.");
   $("lockBtn").textContent = t(isNew ? "Create password" : "Sign in");
@@ -1137,7 +1137,7 @@ async function enterPortal() {
 }
 function renderPortal() {
   if (!portal) return;
-  $("portalEmployer").textContent = portal.settings?.employer || t("Household Payroll");
+  $("portalEmployer").textContent = portal.settings?.employer || t("Worker Payroll");
   $("portalName").textContent = portal.worker.name;
   $("portalQid").textContent = portal.worker.idNo;
   // Salary chart: one series, so no legend; the title names it
@@ -1677,7 +1677,7 @@ function renderWorkers() {
     <td class="num"><div class="row" style="justify-content:end">
       <button class="btn sm" data-pay="${w.id}">${t("Payslip")}</button><button class="btn sm" data-edit="${w.id}">${t("Edit")}</button></div></td></tr>`).join("");
   $("workerRows").innerHTML = rows || (data.workers.length ? noResults(q, 6) : `<tr><td colspan="6" class="empty">${t("No workers yet. Select <strong>Add worker</strong> to add your first one.")}</td></tr>`);
-  $("brandName").textContent = $("brandName2").textContent = data.settings.employer ? data.settings.employer : t("Household Payroll");
+  $("brandName").textContent = $("brandName2").textContent = data.settings.employer ? data.settings.employer : t("Worker Payroll");
 }
 $("workerRows").addEventListener("click", (e) => {
   const edit = e.target.closest("[data-edit]"), pay = e.target.closest("[data-pay]");
@@ -1852,7 +1852,7 @@ $("settingsForm").addEventListener("submit", async (e) => {
 $("exportBtn").addEventListener("click", async () => {
   const blob = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = `household-payroll-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+  a.download = `worker-payroll-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 $("importFile").addEventListener("change", async (e) => {
@@ -1862,7 +1862,7 @@ $("importFile").addEventListener("change", async (e) => {
     if (!Array.isArray(d.workers) || !Array.isArray(d.slips)) throw new Error();
     data = Object.assign(defaults(), d);
     await save(); boot(); toast(t("Backup restored"));
-  } catch { toast(t("This file is not a Household Payroll backup.")); }
+  } catch { toast(t("This file is not a Worker Payroll backup.")); }
   e.target.value = "";
 });
 $("changePwForm").addEventListener("submit", async (e) => {
@@ -1907,7 +1907,7 @@ function makePdf(s, action = "save") {
   doc.setTextColor(...INK); doc.setFont(F, "bold"); doc.setFontSize(12);
   doc.text("H", M + 6.5, 21.6, { align: "center" });
   doc.setTextColor(...INK); doc.setFontSize(16);
-  doc.text(emp.employer || "Household Payroll", M + 17, 19);
+  doc.text(emp.employer || "Worker Payroll", M + 17, 19);
   doc.setFont(F, "normal"); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
   doc.text([emp.address, emp.phone ? "Tel: " + emp.phone : ""].filter(Boolean).join("   ·   "), M + 17, 24.5, { maxWidth: 100 });
 

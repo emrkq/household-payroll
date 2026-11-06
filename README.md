@@ -1,4 +1,4 @@
-# Household Payroll · رواتب العمالة المنزلية
+# Worker Payroll · رواتب العمّال
 
 [English](#english) · [العربية](#arabic)
 
@@ -12,7 +12,7 @@
 
 ### What it is
 
-Household Payroll is a small web app you run on your own server (for example a home server with Docker). It is made for families who employ domestic staff: housemaids, nannies, drivers.
+Worker Payroll is a small web app you run on your own server (for example a home server with Docker). It is made for families who employ domestic staff: housemaids, nannies, drivers.
 
 - The **employer** adds workers, fills in each month's pay, and prints or downloads a clean A4 **PDF payslip** in English.
 - Each **worker** signs in with their ID card number to see their own payslips and salary chart, and can **request a salary advance**.
@@ -109,7 +109,7 @@ The Roboto fonts in `fonts/` are under the Apache License 2.0.
 
 ### وش هو المشروع
 
-**رواتب العمالة المنزلية** موقع صغير تشغّله على سيرفرك الخاص، مثل سيرفر البيت بدوكر. مصمّم للعوائل اللي عندها عمالة منزلية: عاملات منزل، مربيات، سوّاقين.
+**رواتب العمّال** موقع صغير تشغّله على سيرفرك الخاص، مثل سيرفر البيت بدوكر. مصمّم للعوائل اللي عندها عمالة منزلية: عاملات منزل، مربيات، سوّاقين.
 
 - **صاحب العمل** يضيف العمّال، ويعبّي راتب كل شهر، ويطبع أو ينزّل **قسيمة راتب PDF** مرتبة بمقاس A4 وبالإنجليزي.
 - **العامل** يدخل برقم بطاقته الشخصية ويشوف قسائمه ورسم بياني لراتبه، ويقدر **يطلب سلفة**.

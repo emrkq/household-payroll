@@ -1,4 +1,4 @@
-// Household Payroll server: serves the app, handles employer and worker logins, stores data in DATA_DIR.
+// Worker Payroll server: serves the app, handles employer and worker logins, stores data in DATA_DIR.
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -242,4 +242,4 @@ http.createServer(async (req, res) => {
     console.error(e);
     send(res, 500, { error: "Server error" });
   }
-}).listen(PORT, () => console.log(`Household Payroll on :${PORT}, data in ${DATA_DIR}`));
+}).listen(PORT, () => console.log(`Worker Payroll on :${PORT}, data in ${DATA_DIR}`));
